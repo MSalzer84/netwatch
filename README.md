@@ -1,159 +1,103 @@
-# NetWatch — Setup Anleitung
+# NetWatch Monitoring
 
-Netzwerk-Monitoring für privaten Gebrauch und Firmennetzwerke.
-Kein Konto nötig, keine Cloud — alle Daten bleiben im eigenen Netzwerk.
+Ein selbst entwickeltes Netzwerk-Monitoring-System — skalierbar für Heimnetzwerke wie für Firmeninfrastrukturen. Rechner, Server, Drucker, USVs, Access Points und Hypervisoren aus verschiedenen Netzen und Standorten werden in einem übersichtlichen Live-Dashboard zusammengefasst — ähnlich wie Zabbix, und ohne Lizenzkosten, vollständig unter eigener Kontrolle.
+
+---
+
+## Features
+
+- **Live-Dashboard** — WebSocket-basiert, kein Reload nötig
+- **Flexibler Geräte-Baum** — frei benennbar nach Standort, Netzwerk, Gruppe
+- **Sensoren pro Gerät** — CPU, RAM, Disk, Ping, Paketverlust, Bandbreite, Temperatur, Batterie, SSL-Zertifikat
+- **Warn- & Kritisch-Schwellwerte** — individuell pro Sensor einstellbar
+- **Push-Benachrichtigungen** — über ntfy.sh, kostenlos, keine App-Registrierung nötig
+- **Auto-Discovery** — IP-Bereich scannen, Geräte automatisch erkennen (Hostname, MAC, Hersteller)
+- **SNMP-Poller** — Drucker, USVs, Switches ohne Agent überwachen
+- **Hypervisor-Integration** — Proxmox und Hyper-V direkt über API, VMs und Container werden automatisch erkannt
+- **Kiosk-Modus** — Vollbild-Ansicht mit großen Statuskacheln für Wandmonitore
+- **Windows Agent** (PowerShell) und **Linux/Mac Agent** (Python 3)
 
 ---
 
 ## Voraussetzungen
 
-- Node.js (LTS) von nodejs.org
-- PowerShell 5.1+ (auf Windows bereits vorhanden)
-- Python 3 (auf Mac/Linux bereits vorhanden)
+- [Node.js](https://nodejs.org) ab Version 18
+- Windows, Linux oder Raspberry Pi
 
 ---
 
-## Schritt 1 — Server einrichten
-
-### 1.1 Projektordner anlegen
-
-```
-C:\NetWatch\
-├── server.js
-├── package.json
-└── agents\
-    ├── agent.ps1
-    ├── install-windows.ps1
-    └── linux-agent.py
-```
-
-### 1.2 Abhängigkeiten installieren
-
-Terminal im NetWatch-Ordner öffnen:
+## Installation
 
 ```bash
+git clone https://github.com/MSalzer84/netwatch.git
+cd netwatch
 npm install
-```
-
-### 1.3 Push-Alerts einrichten (optional)
-
-In `server.js` die CONFIG am Anfang anpassen:
-
-```js
-NTFY_TOPIC: "mein-catscan-alerts"
-```
-
-Die kostenlose App **ntfy** am Smartphone installieren und diesen Topic abonnieren.
-Bei kritischen Ereignissen kommt dann eine Push-Meldung aufs Handy.
-
-### 1.4 Server starten
-
-```bash
 node server.js
 ```
 
-Erfolgreiche Ausgabe:
+Das Dashboard ist danach erreichbar unter:
 
 ```
-API (Agenten)  → http://localhost:3000
-WebSocket      → ws://localhost:3001
-Dashboard      → http://localhost:3000/netwatch-v5.html
+http://<DEINE-IP>:3000/netwatch-v3.html
 ```
 
-### 1.5 Dashboard öffnen
-
-Im Browser aufrufen — ersetze die IP durch die deines Servers:
-
-```
-http://DEINE-SERVER-IP:3000/netwatch-v5.html
-```
-
-Der Server ist jetzt bereit. Im nächsten Schritt werden die Agenten
-auf den zu überwachenden Geräten installiert.
+Die eigene IP herausfinden:
+- **Windows:** `ipconfig`
+- **Linux/Mac:** `ip a`
 
 ---
 
-## Schritt 2 — Agent installieren
-
-Der Agent läuft im Hintergrund und sendet alle 30–60 Sekunden
-Messdaten an den NetWatch-Server.
+## Agent installieren
 
 ### Windows
-
-1. `agent.ps1` und `install-windows.ps1` auf den Zielrechner kopieren
-2. In `agent.ps1` die Server-Adresse anpassen:
-
 ```powershell
-BackendUrl = "http://DEINE-SERVER-IP:3000/api/data"
+powershell -ExecutionPolicy Bypass -File agents/agent.ps1 -Server http://<SERVER-IP>:3000
 ```
 
-3. PowerShell als Administrator öffnen und ausführen:
-
+Oder als geplante Aufgabe (startet automatisch mit Windows):
 ```powershell
-Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
-powershell -File agent.ps1
+schtasks /create /tn "NetWatch" /tr "powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File C:\netwatch\agents\agent.ps1 -Server http://<SERVER-IP>:3000" /sc onstart /ru SYSTEM /f
 ```
 
-Der Agent erscheint danach automatisch im Dashboard.
-
-#### Als Windows-Dienst installieren (dauerhaft)
-
-```powershell
-powershell -File install-windows.ps1
-```
-
-Startet automatisch mit Windows, kein manueller Neustart nötig.
-
----
-
-### Linux & Mac
-
-`linux-agent.py` auf den Zielrechner kopieren und die Server-Adresse
-in der Datei anpassen (Zeile `SERVER_URL`), dann:
-
+### Linux / Mac
 ```bash
-python3 linux-agent.py
+python3 agents/linux-agent.py --server http://<SERVER-IP>:3000
 ```
 
-#### One-Liner (ohne Datei herunterladen)
-
+Dauerhaft mit pm2:
 ```bash
-curl -s http://DEINE-SERVER-IP:3000/agents/linux-agent.py | python3 - --server http://DEINE-SERVER-IP:3000
-```
-
-#### Dauerhaft (systemd)
-
-```bash
-curl -s http://DEINE-SERVER-IP:3000/agents/linux-agent.py -o /opt/catscan-agent.py
-python3 /opt/catscan-agent.py --server http://DEINE-SERVER-IP:3000
+npm install -g pm2
+pm2 start agents/linux-agent.py --name netwatch-agent --interpreter python3 -- --server http://<SERVER-IP>:3000
+pm2 save && pm2 startup
 ```
 
 ---
 
-## Schritt 3 — SNMP für Drucker, USVs, APs (optional)
+## Server dauerhaft laufen lassen
 
-Geräte ohne Agent werden per SNMP abgefragt. Im zweiten Terminal:
-
-```bash
-node agents/snmp-poller.js
+**Windows** (als Administrator):
+```powershell
+schtasks /create /tn "NetWatch" /tr "node C:\netwatch\server.js" /sc onstart /ru SYSTEM /f
 ```
 
-Am Gerät SNMP aktivieren und Community `public` setzen.
-Windows Firewall: UDP Port 161 freigeben.
+**Linux/Mac** mit pm2:
+```bash
+npm install -g pm2
+pm2 start server.js --name netwatch
+pm2 save && pm2 startup
+```
 
 ---
 
-## Häufige Fehler
+## Ports
 
-**"Cannot find module ..."**
-→ `npm install` nochmal ausführen
+| Port | Verwendung |
+|------|-----------|
+| 3000 | API & Dashboard |
+| 3001 | WebSocket Live-Updates |
 
-**"Access denied" bei PowerShell**
-→ `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser`
+---
 
-**Agent sendet, Dashboard zeigt nichts**
-→ Prüfen ob `server.js` läuft und der Agent die richtige IP hat
+## Autor
 
-**SNMP antwortet nicht**
-→ SNMP am Gerät aktivieren und Community "public" setzen
-→ Firewall: UDP Port 161 freigeben
+MSalzer — [github.com/MSalzer84](https://github.com/MSalzer84)
