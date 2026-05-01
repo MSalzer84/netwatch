@@ -16,10 +16,20 @@ Ein selbst entwickeltes Netzwerk-Monitoring-System — skalierbar für Heimnetzw
 - **Warn- & Kritisch-Schwellwerte** — individuell pro Sensor einstellbar
 - **Push-Benachrichtigungen** — über ntfy.sh, kostenlos, keine App-Registrierung nötig
 - **Auto-Discovery** — IP-Bereich scannen, Geräte automatisch erkennen (Hostname, MAC, Hersteller)
+- **Massen-Import** — nach dem Scan mehrere Geräte gleichzeitig auswählen und mit einem Klick speichern
 - **SNMP-Poller** — Drucker, USVs, Switches ohne Agent überwachen
-- **Hypervisor-Integration** — Proxmox und Hyper-V direkt über API, VMs und Container werden automatisch erkannt
-- **Kiosk-Modus** — Vollbild-Ansicht mit großen Statuskacheln für Wandmonitore
-- **Windows Agent** (PowerShell) und **Linux/Mac Agent** (Python 3)
+- **Hypervisor-Integration** — Proxmox und Hyper-V, VMs und Container automatisch erkennen
+- **Kiosk-Modus** — Vollbild-Ansicht mit Echtzeit-Alarmen (Flash, Ton, Browser-Benachrichtigung, ACK-Button)
+- **Windows Agent** (PowerShell), **Linux/Mac Agent** (Python 3), **Hyper-V Agent** (separater Installer)
+
+---
+
+## Neu
+
+- **Bulk-Import nach Scan** — Checkboxen pro Gerät, gemeinsame Felder (Standort, Netzwerk, Gruppe, Typ) für alle auf einmal setzen
+- **Kiosk-Alarme** — Vollbild-Flash, Alarmton, persistenter Banner mit Bestätigen-Button, native Browser-Benachrichtigung (auch bei minimiertem Fenster); konfigurierbar welche Ereignisse auslösen (Offline / Kritisch / Warnung)
+- **Hyper-V Installer** — `http://<SERVER-IP>:3000/download/install-hyperv-agent.bat` — fragt nach Standort/Gruppe, richtet Agent mit VM-Erkennung als Windows-Dienst ein
+- **Dashboard von überall erreichbar** — URL verwendet jetzt automatisch den richtigen Hostnamen statt localhost
 
 ---
 
