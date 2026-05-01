@@ -28,12 +28,31 @@ Ein selbst entwickeltes Netzwerk-Monitoring-System — skalierbar für Heimnetzw
 
 ## Installation
 
+### Mit git (empfohlen)
+
 ```bash
 git clone https://github.com/MSalzer84/netwatch.git
 cd netwatch
 npm install
 node server.js
 ```
+
+### Als ZIP herunterladen
+
+1. Auf GitHub den grünen Button **Code → Download ZIP** klicken
+2. ZIP nach **`C:\`** entpacken — es entsteht der Ordner `C:\netwatch-main`
+3. Ordner umbenennen: `netwatch-main` → `netwatch`
+4. Terminal im Ordner `C:\netwatch` öffnen und ausführen:
+
+```powershell
+cd C:\netwatch
+npm install
+node server.js
+```
+
+> **Wichtig:** Der Ordner muss `netwatch` heißen (nicht `netwatch-main`), damit alle Pfade in den Befehlen und Scripts korrekt funktionieren.
+
+---
 
 Das Dashboard ist danach erreichbar unter:
 
