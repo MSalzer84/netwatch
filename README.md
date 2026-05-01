@@ -2,6 +2,8 @@
 
 **Projektseite:** [dev.msalzer.dscloud.me/netwatch.html](https://dev.msalzer.dscloud.me/netwatch.html)
 
+> ⚠️ **Testphase** — Alle Features sind umgesetzt und funktionieren. Vereinzelte Bugs werden laufend gefixt. Feedback und Fehlerberichte willkommen.
+
 Ein selbst entwickeltes Netzwerk-Monitoring-System — skalierbar für Heimnetzwerke wie für Firmeninfrastrukturen. Rechner, Server, Drucker, USVs, Access Points und Hypervisoren aus verschiedenen Netzen und Standorten werden in einem übersichtlichen Live-Dashboard zusammengefasst — ähnlich wie Zabbix, und ohne Lizenzkosten, vollständig unter eigener Kontrolle.
 
 ---
