@@ -1,124 +1,103 @@
-# NetWatch — Setup Anleitung
+# NetWatch Monitoring
+
+Ein selbst entwickeltes Netzwerk-Monitoring-System — skalierbar für Heimnetzwerke wie für Firmeninfrastrukturen. Rechner, Server, Drucker, USVs, Access Points und Hypervisoren aus verschiedenen Netzen und Standorten werden in einem übersichtlichen Live-Dashboard zusammengefasst — ähnlich wie Zabbix, und ohne Lizenzkosten, vollständig unter eigener Kontrolle.
+
+---
+
+## Features
+
+- **Live-Dashboard** — WebSocket-basiert, kein Reload nötig
+- **Flexibler Geräte-Baum** — frei benennbar nach Standort, Netzwerk, Gruppe
+- **Sensoren pro Gerät** — CPU, RAM, Disk, Ping, Paketverlust, Bandbreite, Temperatur, Batterie, SSL-Zertifikat
+- **Warn- & Kritisch-Schwellwerte** — individuell pro Sensor einstellbar
+- **Push-Benachrichtigungen** — über ntfy.sh, kostenlos, keine App-Registrierung nötig
+- **Auto-Discovery** — IP-Bereich scannen, Geräte automatisch erkennen (Hostname, MAC, Hersteller)
+- **SNMP-Poller** — Drucker, USVs, Switches ohne Agent überwachen
+- **Hypervisor-Integration** — Proxmox und Hyper-V direkt über API, VMs und Container werden automatisch erkannt
+- **Kiosk-Modus** — Vollbild-Ansicht mit großen Statuskacheln für Wandmonitore
+- **Windows Agent** (PowerShell) und **Linux/Mac Agent** (Python 3)
+
+---
 
 ## Voraussetzungen
-- Node.js (LTS) von nodejs.org
-- Visual Studio Code
-- PowerShell 5.1 oder höher (auf Windows bereits vorhanden)
+
+- [Node.js](https://nodejs.org) ab Version 18
+- Windows, Linux oder Raspberry Pi
 
 ---
 
-## Schritt 1 — Projektordner anlegen
-
-```
-C:\NetWatch\
-├── server.js
-├── package.json
-├── netwatch-v3.html
-└── agents\
-    ├── agent.ps1
-    └── snmp-poller.js
-```
-
----
-
-## Schritt 2 — Node.js Pakete installieren
-
-Terminal in VS Code öffnen (Strg+Ö) und eingeben:
+## Installation
 
 ```bash
-cd C:\NetWatch
+git clone https://github.com/MSalzer84/netwatch.git
+cd netwatch
 npm install
-```
-
----
-
-## Schritt 3 — server.js anpassen
-
-In server.js die CONFIG am Anfang anpassen:
-- NTFY_TOPIC: Einen Namen wählen z.B. "meinefirma-alerts"
-  (dann die ntfy App am Handy installieren und diesen Topic abonnieren)
-
----
-
-## Schritt 4 — Backend starten
-
-```bash
 node server.js
 ```
 
-Ausgabe sollte sein:
-  API (Agenten)  → http://localhost:3000
-  WebSocket      → ws://localhost:3001
+Das Dashboard ist danach erreichbar unter:
+
+```
+http://<DEINE-IP>:3000/netwatch-v3.html
+```
+
+Die eigene IP herausfinden:
+- **Windows:** `ipconfig`
+- **Linux/Mac:** `ip a`
 
 ---
 
-## Schritt 5 — Agent auf einem Test-PC ausführen
+## Agent installieren
 
-agent.ps1 öffnen und BackendUrl anpassen:
+### Windows
 ```powershell
-BackendUrl = "http://DEINE-SERVER-IP:3000/api/data"
+powershell -ExecutionPolicy Bypass -File agents/agent.ps1 -Server http://<SERVER-IP>:3000
 ```
 
-Dann im PowerShell (als Administrator):
+Oder als geplante Aufgabe (startet automatisch mit Windows):
 ```powershell
-Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
-powershell -File C:\NetWatch\agents\agent.ps1
+schtasks /create /tn "NetWatch" /tr "powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File C:\netwatch\agents\agent.ps1 -Server http://<SERVER-IP>:3000" /sc onstart /ru SYSTEM /f
 ```
 
----
-
-## Schritt 6 — Dashboard öffnen
-
-Im Browser aufrufen:
-```
-http://localhost:3000/netwatch-v3.html
-```
-
-Oder die HTML-Datei direkt öffnen — dann aber in netwatch-v3.html
-die WebSocket-Verbindung aktivieren (siehe Kommentar im HTML).
-
----
-
-## Schritt 7 — Agent als Windows Dienst installieren
-
-PowerShell als Administrator:
-
-```powershell
-$params = @{
-    Name           = "NetWatchAgent"
-    DisplayName    = "NetWatch Monitoring Agent"
-    Description    = "Sendet Systemmetriken an das NetWatch Backend"
-    BinaryPathName = "powershell.exe -NonInteractive -ExecutionPolicy Bypass -File C:\NetWatch\agents\agent.ps1"
-    StartupType    = "Automatic"
-}
-New-Service @params
-Start-Service NetWatchAgent
-```
-
----
-
-## SNMP Poller (für Drucker, USVs, APs)
-
-In agents\snmp-poller.js die DEVICES-Liste befüllen,
-dann in einem zweiten Terminal:
-
+### Linux / Mac
 ```bash
-node agents/snmp-poller.js
+python3 agents/linux-agent.py --server http://<SERVER-IP>:3000
+```
+
+Dauerhaft mit pm2:
+```bash
+npm install -g pm2
+pm2 start agents/linux-agent.py --name netwatch-agent --interpreter python3 -- --server http://<SERVER-IP>:3000
+pm2 save && pm2 startup
 ```
 
 ---
 
-## Häufige Fehler
+## Server dauerhaft laufen lassen
 
-**"Cannot find module 'better-sqlite3'"**
-→ npm install nochmal ausführen
+**Windows** (als Administrator):
+```powershell
+schtasks /create /tn "NetWatch" /tr "node C:\netwatch\server.js" /sc onstart /ru SYSTEM /f
+```
 
-**"Access denied" bei PowerShell**
-→ Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+**Linux/Mac** mit pm2:
+```bash
+npm install -g pm2
+pm2 start server.js --name netwatch
+pm2 save && pm2 startup
+```
 
-**Dashboard zeigt keine Daten**
-→ Prüfen ob server.js läuft und der Agent die richtige IP hat
+---
 
-**SNMP antwortet nicht**
-→ Am Gerät SNMP aktivieren und Community "public" setzen
-→ Windows Firewall: UDP Port 161 freigeben
+## Ports
+
+| Port | Verwendung |
+|------|-----------|
+| 3000 | API & Dashboard |
+| 3001 | WebSocket Live-Updates |
+
+---
+
+## Autor
+
+MSalzer — [github.com/MSalzer84](https://github.com/MSalzer84)
