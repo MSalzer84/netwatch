@@ -1424,10 +1424,26 @@ async function pollSingleSensor(s) {
     } catch { status = 'off'; }
   }
 
+  const prev = await db.get('SELECT last_status, device_id FROM custom_sensors WHERE id = ?', [s.id]);
   await db.run(
     `UPDATE custom_sensors SET last_ms = ?, last_status = ?, last_ts = ? WHERE id = ?`,
     [ms, status, Date.now(), s.id]
   );
+
+  // Alarm in DB schreiben wenn Sensor auf crit/warn wechselt
+  const prevStatus = prev?.last_status || 'ok';
+  const worsened = (status === 'crit' && prevStatus !== 'crit') ||
+                   (status === 'warn' && prevStatus === 'ok') ||
+                   (status === 'off'  && prevStatus === 'ok');
+  if (worsened && prev?.device_id) {
+    const sev = status === 'crit' ? 'crit' : 'warn';
+    const valStr = ms !== null ? ` (${ms}${s.unit || ''})` : '';
+    await db.run(
+      `INSERT INTO alerts (device_id, ts, severity, type, message) VALUES (?, ?, ?, 'sensor', ?)`,
+      [prev.device_id, Date.now(), sev, `Sensor "${s.name}"${valStr} — ${status === 'off' ? 'nicht erreichbar' : status === 'crit' ? 'kritisch' : 'Warnschwelle'}`]
+    );
+  }
+
   broadcast({ type: 'sensor_update', hostname: s.hostname, sensorId: s.id, name: s.name, status, ms });
   return { status, ms };
 }
@@ -1542,7 +1558,9 @@ async function pollAllSnmpMetrics() {
         await db.run('UPDATE devices SET extra_info = ? WHERE id = ?', [eiStr, dev.id]);
         dev.extra_info = eiStr;
         const st = calcStatus({ cpu: cpu ?? 0, mem: mem ?? 0, disk: disk ?? 0 });
+        await db.run('UPDATE devices SET status = ? WHERE id = ?', [st, dev.id]);
         broadcastUpdate({ ...dev, status: st }, { cpu: cpu ?? 0, mem: mem ?? 0, disk: disk ?? 0, ping: latest?.ping, uptime: latest?.uptime, extra: ei }, st);
+        await checkAlerts(dev, { cpu: cpu ?? 0, mem: mem ?? 0, disk: disk ?? 0, ping: latest?.ping ?? 0 }, now);
         const bwLog = bw_in_kbps !== null ? ` BW↓${bw_in_kbps}kbps ↑${bw_out_kbps}kbps` : '';
         console.log(`[SNMP-Met] ${dev.hostname}: CPU=${cpu}% MEM=${mem}% DISK=${disk}%${temp != null ? ' TEMP=' + temp + '°C' : ''}${bwLog}`);
       } catch { /* Gerät antwortet nicht per SNMP – kein Fehler */ }
@@ -2221,7 +2239,30 @@ async function pingMonitor() {
         dev.extra_info = eiStr;
 
         const st = ms >= CONFIG.ALERT_PING ? 'warn' : 'ok';
+        const prevSt = dev.status || 'ok';
         await db.run('UPDATE devices SET last_seen = ?, status = ? WHERE id = ?', [now, st, dev.id]);
+
+        // Latenz-Alarm einmalig schreiben wenn Schwelle überschritten
+        if (st === 'warn' && prevSt !== 'warn' && prevSt !== 'off') {
+          const noRecent = !(await db.get(
+            `SELECT id FROM alerts WHERE device_id = ? AND type = 'ping' AND acked = 0 AND ts > ?`,
+            [dev.id, now - 300_000]
+          ));
+          if (noRecent) await db.run(
+            `INSERT INTO alerts (device_id, ts, severity, type, message) VALUES (?, ?, 'warn', 'ping', ?)`,
+            [dev.id, now, `Ping ${ms}ms — erhöhte Latenz (Schwelle: ${CONFIG.ALERT_PING}ms)`]
+          );
+        }
+        if (loss_pct >= 50) {
+          const noRecent = !(await db.get(
+            `SELECT id FROM alerts WHERE device_id = ? AND type = 'loss' AND acked = 0 AND ts > ?`,
+            [dev.id, now - 300_000]
+          ));
+          if (noRecent) await db.run(
+            `INSERT INTO alerts (device_id, ts, severity, type, message) VALUES (?, ?, 'crit', 'loss', ?)`,
+            [dev.id, now, `Paketverlust ${loss_pct}% — kritisch`]
+          );
+        }
         const prevMet = await db.get('SELECT cpu, mem, disk FROM metrics WHERE device_id = ? AND (cpu > 0 OR mem > 0) ORDER BY ts DESC LIMIT 1', [dev.id]);
         await db.run(
           'INSERT INTO metrics (device_id, ts, cpu, mem, disk, ping, uptime) VALUES (?, ?, ?, ?, ?, ?, ?)',
