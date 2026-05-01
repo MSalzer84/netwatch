@@ -51,6 +51,11 @@ npm --version
 
 > **Hinweis Windows:** Nach der Installation per winget muss das Terminal neu gestartet werden, damit `node` erkannt wird — PowerShell-Fenster schließen und neu öffnen.
 
+> **Hinweis PowerShell:** Falls `npm install` mit `Ausführung von Skripts deaktiviert` fehlschlägt, einmalig folgenden Befehl ausführen und mit **J** bestätigen:
+> ```powershell
+> Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+> ```
+
 ---
 
 ## Installation
