@@ -733,6 +733,44 @@ canvas.lat-chart{width:100%;height:44px;display:block;margin-top:5px}
       </div>
       <div id="scan-results"></div>
     </div>
+    <div id="scan-bulk-bar" style="display:none;border-top:1px solid var(--green);background:var(--bg1);padding:10px 16px;flex-direction:column;gap:8px;flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:11px;font-weight:600;color:var(--green);font-family:var(--mono)">⬇ <span id="scan-bulk-cnt">0</span> Geräte ausgewählt</span>
+        <span style="font-size:9px;color:var(--t3);font-family:var(--sans)">Gemeinsame Einstellungen:</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px">
+        <div>
+          <div style="font-size:8px;color:var(--t3);font-family:var(--sans);margin-bottom:2px" id="bulk-lbl-1">Standort</div>
+          <input class="fi" id="bulk-l1" style="font-size:9px;padding:4px 6px" placeholder="Standort">
+        </div>
+        <div>
+          <div style="font-size:8px;color:var(--t3);font-family:var(--sans);margin-bottom:2px" id="bulk-lbl-2">Netzwerk</div>
+          <input class="fi" id="bulk-l2" style="font-size:9px;padding:4px 6px" placeholder="Netzwerk">
+        </div>
+        <div>
+          <div style="font-size:8px;color:var(--t3);font-family:var(--sans);margin-bottom:2px" id="bulk-lbl-3">Gruppe</div>
+          <input class="fi" id="bulk-l3" style="font-size:9px;padding:4px 6px" placeholder="Gruppe">
+        </div>
+        <div>
+          <div style="font-size:8px;color:var(--t3);font-family:var(--sans);margin-bottom:2px">Typ</div>
+          <select class="fi" id="bulk-type" style="font-size:9px;padding:4px 6px">
+            <option value="">Auto</option>
+            <option value="client">Client</option>
+            <option value="server">Server</option>
+            <option value="nas">NAS</option>
+            <option value="switch">Switch</option>
+            <option value="ap">Access Point</option>
+            <option value="usv">USV</option>
+            <option value="printer">Drucker</option>
+            <option value="router">Router</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="btn p" style="font-size:10px;padding:5px 14px" onclick="bulkAddFromScan()">✓ Ausgewählte speichern</button>
+        <span id="bulk-add-status" style="font-size:9px;color:var(--t3);font-family:var(--sans)"></span>
+      </div>
+    </div>
     <div class="mf">
       <button class="btn" onclick="closeScan()">Schließen</button>
       <button class="btn p" id="scanStartBtn" onclick="startScanFromUI()">🔍 Ping-Scan starten</button>
@@ -1681,7 +1719,14 @@ function renderScanResults(data) {
   const unknown = data.hosts.filter(h => !h.known);
   const known   = data.hosts.filter(h =>  h.known);
 
-  const l1 = LEVELS[0]||'Standort', l2 = LEVELS[1]||'Netzwerk', l3 = LEVELS[2]||'Gruppe';
+  // Update Bulk-Bar Labels
+  const lbl1 = document.getElementById('bulk-lbl-1');
+  const lbl2 = document.getElementById('bulk-lbl-2');
+  const lbl3 = document.getElementById('bulk-lbl-3');
+  if (lbl1) lbl1.textContent = LEVELS[0]?.name || 'Standort';
+  if (lbl2) lbl2.textContent = LEVELS[1]?.name || 'Netzwerk';
+  if (lbl3) lbl3.textContent = LEVELS[2]?.name || 'Gruppe';
+  updateBulkBar();
 
   let html = `<div style="font-size:9px;color:var(--t3);font-family:var(--sans);margin:10px 0 8px">${data.found} Geräte · <span style="color:var(--green)">${unknown.length} neu</span> · <span style="color:var(--cyan)">${known.length} bekannt</span></div>`;
 
@@ -1697,42 +1742,6 @@ function renderScanResults(data) {
     html += `<div style="font-size:9px;color:var(--t3);letter-spacing:.08em;text-transform:uppercase;margin:10px 0 5px;font-family:var(--sans)">Bereits erfasst</div>`;
     html += known.map(h => scanHostRow(h, true)).join('');
   }
-
-  html += `
-  <div id="scan-bulk-bar" style="display:none;position:sticky;bottom:0;background:var(--bg1);border:1px solid var(--green);border-radius:6px;padding:10px 12px;margin-top:10px;flex-direction:column;gap:8px;box-shadow:0 -4px 16px rgba(0,0,0,.4);">
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      <span style="font-size:11px;font-weight:600;color:var(--green);font-family:var(--mono);">⬇ <span id="scan-bulk-cnt">0</span> Geräte ausgewählt</span>
-      <span style="font-size:9px;color:var(--t3);font-family:var(--sans);">Gemeinsame Einstellungen für alle:</span>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
-      <div><div style="font-size:8px;color:var(--t3);font-family:var(--sans);margin-bottom:2px;">${l1}</div>
-        <input class="fi" id="bulk-l1" placeholder="${l1}" style="font-size:9px;padding:4px 6px;">
-      </div>
-      <div><div style="font-size:8px;color:var(--t3);font-family:var(--sans);margin-bottom:2px;">${l2}</div>
-        <input class="fi" id="bulk-l2" placeholder="${l2}" style="font-size:9px;padding:4px 6px;">
-      </div>
-      <div><div style="font-size:8px;color:var(--t3);font-family:var(--sans);margin-bottom:2px;">${l3}</div>
-        <input class="fi" id="bulk-l3" placeholder="${l3}" style="font-size:9px;padding:4px 6px;">
-      </div>
-      <div><div style="font-size:8px;color:var(--t3);font-family:var(--sans);margin-bottom:2px;">Typ</div>
-        <select class="fi" id="bulk-type" style="font-size:9px;padding:4px 6px;">
-          <option value="">Auto</option>
-          <option value="client">Client</option>
-          <option value="server">Server</option>
-          <option value="nas">NAS</option>
-          <option value="switch">Switch</option>
-          <option value="ap">Access Point</option>
-          <option value="usv">USV</option>
-          <option value="printer">Drucker</option>
-          <option value="router">Router</option>
-        </select>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <button class="btn p" style="font-size:10px;padding:5px 14px;" onclick="bulkAddFromScan()">✓ Alle ausgewählten speichern</button>
-      <span id="bulk-add-status" style="font-size:9px;color:var(--t3);font-family:var(--sans);"></span>
-    </div>
-  </div>`;
 
   el.innerHTML = html;
 }
@@ -1773,12 +1782,16 @@ async function bulkAddFromScan() {
   }
   localStorage.setItem('cs_devs', JSON.stringify(devCfg));
   buildTree(); renderMain();
-  statusEl.style.color = fail ? 'var(--yellow)' : 'var(--green)';
-  statusEl.textContent = `✓ ${ok} gespeichert${fail ? ` · ${fail} Fehler` : ''}`;
   scanSelected.clear();
   document.querySelectorAll('[data-scan-ip]').forEach(cb => cb.checked=false);
   updateBulkBar();
+  document.getElementById('bulk-add-status').textContent = '';
+  document.getElementById('bulk-l1').value = '';
+  document.getElementById('bulk-l2').value = '';
+  document.getElementById('bulk-l3').value = '';
+  document.getElementById('bulk-type').value = '';
   toast(`${ok} Geräte hinzugefügt${fail?' · '+fail+' Fehler':''}`, ok ? 'ok' : 'err');
+  if (ok > 0) setTimeout(() => closeScan(), 800);
 }
 
 function addFromScan(ip) {

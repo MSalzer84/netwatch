@@ -524,6 +524,8 @@ async function initDatabase() {
   try { await db.run('ALTER TABLE vms ADD COLUMN vm_disk_gb REAL DEFAULT 0'); } catch {}
   try { await db.run('ALTER TABLE vms ADD COLUMN vm_type TEXT DEFAULT \'vm\''); } catch {}
   try { await db.run('ALTER TABLE vms ADD COLUMN vm_id INTEGER'); } catch {}
+  try { await db.run('ALTER TABLE devices ADD COLUMN blocked INTEGER DEFAULT 0'); } catch {}
+  await db.run(`CREATE TABLE IF NOT EXISTS blocked_hosts (hostname TEXT PRIMARY KEY)`);
 
   console.log('[DB] Datenbank initialisiert');
 }
@@ -549,6 +551,10 @@ app.post('/api/data', async (req, res) => {
     const now = Date.now();
 
     if (!d.hostname) return res.status(400).json({ error: 'hostname fehlt' });
+
+    // Gerät wurde explizit gelöscht — Agent-Pushes dauerhaft ignorieren
+    const blocked = await db.get('SELECT 1 FROM blocked_hosts WHERE hostname = ?', [d.hostname]);
+    if (blocked) return res.json({ ok: true, ignored: true });
 
     const status = calcStatus(d);
 
@@ -759,6 +765,9 @@ app.post('/api/devices', async (req, res) => {
     if (!d.hostname) return res.status(400).json({ error: 'hostname fehlt' });
     const hn = String(d.hostname).toUpperCase();
 
+    // Aus Blockliste entfernen (User fügt Gerät bewusst wieder hinzu)
+    await db.run('DELETE FROM blocked_hosts WHERE hostname = ?', [hn]);
+
     await db.run(`
       INSERT INTO devices (hostname, ip, os, type, path_l1, path_l2, path_l3, tags, first_seen, last_seen, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'unknown')
@@ -840,6 +849,8 @@ app.delete('/api/devices/:hostname', async (req, res) => {
     const dev = await db.get(`SELECT * FROM devices WHERE hostname = ?`, [hn]);
     if (!dev) return res.status(404).json({ error: 'Gerät nicht gefunden' });
 
+    await db.run(`INSERT OR IGNORE INTO blocked_hosts (hostname) VALUES (?)`, [hn]);
+    await db.run(`DELETE FROM custom_sensors WHERE device_id = ?`, [dev.id]);
     await db.run(`DELETE FROM metrics WHERE device_id = ?`, [dev.id]);
     await db.run(`DELETE FROM alerts  WHERE device_id = ?`, [dev.id]);
     await db.run(`DELETE FROM vms     WHERE device_id = ?`, [dev.id]);
@@ -2422,7 +2433,7 @@ pause
   res.send(bat);
 });
 
-app.get('/download/install-hyperv.bat', (req, res) => {
+app.get('/download/install-hyperv-agent.bat', (req, res) => {
   const host = req.headers.host || `localhost:${CONFIG.API_PORT}`;
   const serverUrl = `http://${host}`;
   const bat = `@echo off
