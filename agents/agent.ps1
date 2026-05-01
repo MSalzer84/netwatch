@@ -179,7 +179,7 @@ function Get-ServiceStatus {
     $result = @()
     foreach ($n in $Names) {
         $s = Get-Service -Name $n.Trim()
-        if ($s) { $result += "$( if($s.Status -eq 'Running'){'✓'}else{'✗'} )$($s.DisplayName)" }
+        if ($s) { $result += "$( if($s.Status -eq 'Running'){'[OK]'}else{'[ERR]'} )$($s.DisplayName)" }
     }
     return $result
 }
@@ -272,7 +272,7 @@ function Collect-And-Send {
     try {
         $resp = Invoke-RestMethod -Uri $url -Method POST -Body $json `
                     -ContentType "application/json" -TimeoutSec 10
-        Write-Log "✓ CPU:${cpu}%  RAM:${mem}%  Disk:${disk}%  Up:${up}$(if($temp){`"  Temp:${temp}°C`"}else{''})"
+        Write-Log "[OK] CPU:${cpu}%  RAM:${mem}%  Disk:${disk}%  Up:${up}$(if($temp){`"  Temp:${temp} C`"}else{''})"
         if ($VerboseLog) { Write-Log "Server: $($resp | ConvertTo-Json -Compress)" }
     } catch {
         Write-Log "FEHLER beim Senden: $($_.Exception.Message)" -Level "WARN"
@@ -281,7 +281,7 @@ function Collect-And-Send {
 
 # ── Hauptschleife ─────────────────────────────────────────────
 $hn = if ($Hostname) { $Hostname } else { $env:COMPUTERNAME }
-Write-Log "NetWatch Windows Agent v$VERSION — $hn → $Server"
+Write-Log "NetWatch Windows Agent v$VERSION -- $hn -> $Server"
 Write-Log "Intervall: ${Interval}s | Typ: $Type | Site: $Site"
 
 while ($true) {

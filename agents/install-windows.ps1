@@ -26,14 +26,14 @@ function Write-Warn { param($m) Write-Host "[WARN]  $m" -ForegroundColor Yellow 
 function Write-Err  { param($m) Write-Host "[FEHLER] $m" -ForegroundColor Red; exit 1 }
 
 Write-Host ""
-Write-Host "╔══════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║    NetWatch Windows Agent – Installer        ║" -ForegroundColor Cyan
-Write-Host "╚══════════════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host "+----------------------------------------------+" -ForegroundColor Cyan
+Write-Host "|    NetWatch Windows Agent - Installer        |" -ForegroundColor Cyan
+Write-Host "+----------------------------------------------+" -ForegroundColor Cyan
 Write-Host ""
 
 # ── Admin-Check ───────────────────────────────────────────────
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-if (-not $isAdmin) { Write-Err "Bitte als Administrator ausführen (rechtsklick → Als Administrator)" }
+if (-not $isAdmin) { Write-Err "Bitte als Administrator ausfuehren (Rechtsklick -> Als Administrator)" }
 
 # ── Server-URL ermitteln ──────────────────────────────────────
 if (-not $Server) {
@@ -90,12 +90,12 @@ $state = (Get-ScheduledTask -TaskName $taskName).State
 if ($state -eq "Running") {
     Write-Ok "Agent läuft!"
 } else {
-    Write-Warn "Agent-Status: $state — prüfe Logs: $InstDir\agent.log"
+    Write-Warn "Agent-Status: $state - prüfe Logs: $InstDir\agent.log"
 }
 
 # ── Abschluss ─────────────────────────────────────────────────
 Write-Host ""
-Write-Host "✓ Installation abgeschlossen!" -ForegroundColor Green
+Write-Host "[OK] Installation abgeschlossen!" -ForegroundColor Green
 Write-Host ""
 Write-Host "  Agent-Script:  $InstDir\agent.ps1"
 Write-Host "  Log-Datei:     $InstDir\agent.log"

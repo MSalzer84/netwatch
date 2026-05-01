@@ -2095,8 +2095,8 @@ app.get('/agents/snmp-poller.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'agents', 'snmp-poller.js'));
 });
 
-app.get('/catscan', (req, res) => {
-  res.sendFile(path.join(__dirname, 'catscan.html'));
+app.get('/netwatch', (req, res) => {
+  res.sendFile(path.join(__dirname, 'netwatch-v5.html'));
 });
 
 app.get('/download/install-agent.bat', (req, res) => {
@@ -2106,7 +2106,7 @@ app.get('/download/install-agent.bat', (req, res) => {
 chcp 65001 >nul
 echo.
 echo  ╔══════════════════════════════════════════╗
-echo  ║       CATScan Agent - Installation       ║
+echo  ║       NetWatch Agent - Installation      ║
 echo  ╚══════════════════════════════════════════╝
 echo.
 
@@ -2120,9 +2120,9 @@ if %errorLevel% neq 0 (
 )
 
 set SERVER=${serverUrl}
-set INSTALLDIR=%ProgramData%\\CATScan
+set INSTALLDIR=%ProgramData%\\NetWatch
 set AGENTFILE=%INSTALLDIR%\\agent.ps1
-set TASKNAME=CATScan-Agent
+set TASKNAME=NetWatch-Agent
 
 echo  Server: %SERVER%
 echo  Zielordner: %INSTALLDIR%
@@ -2160,7 +2160,7 @@ echo       OK
 echo.
 echo  ══════════════════════════════════════════════
 echo  Agent laeuft! Geraet erscheint in Kuerze im
-echo  CATScan Dashboard: %SERVER%/netwatch-v3.html
+echo  NetWatch Dashboard: %SERVER%/netwatch-v5.html
 echo  ══════════════════════════════════════════════
 echo.
 pause

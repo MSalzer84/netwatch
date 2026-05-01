@@ -1,124 +1,159 @@
 # NetWatch — Setup Anleitung
 
-## Voraussetzungen
-- Node.js (LTS) von nodejs.org
-- Visual Studio Code
-- PowerShell 5.1 oder höher (auf Windows bereits vorhanden)
+Netzwerk-Monitoring für privaten Gebrauch und Firmennetzwerke.
+Kein Konto nötig, keine Cloud — alle Daten bleiben im eigenen Netzwerk.
 
 ---
 
-## Schritt 1 — Projektordner anlegen
+## Voraussetzungen
+
+- Node.js (LTS) von nodejs.org
+- PowerShell 5.1+ (auf Windows bereits vorhanden)
+- Python 3 (auf Mac/Linux bereits vorhanden)
+
+---
+
+## Schritt 1 — Server einrichten
+
+### 1.1 Projektordner anlegen
 
 ```
 C:\NetWatch\
 ├── server.js
 ├── package.json
-├── netwatch-v3.html
 └── agents\
     ├── agent.ps1
-    └── snmp-poller.js
+    ├── install-windows.ps1
+    └── linux-agent.py
 ```
 
----
+### 1.2 Abhängigkeiten installieren
 
-## Schritt 2 — Node.js Pakete installieren
-
-Terminal in VS Code öffnen (Strg+Ö) und eingeben:
+Terminal im NetWatch-Ordner öffnen:
 
 ```bash
-cd C:\NetWatch
 npm install
 ```
 
----
+### 1.3 Push-Alerts einrichten (optional)
 
-## Schritt 3 — server.js anpassen
+In `server.js` die CONFIG am Anfang anpassen:
 
-In server.js die CONFIG am Anfang anpassen:
-- NTFY_TOPIC: Einen Namen wählen z.B. "meinefirma-alerts"
-  (dann die ntfy App am Handy installieren und diesen Topic abonnieren)
+```js
+NTFY_TOPIC: "mein-catscan-alerts"
+```
 
----
+Die kostenlose App **ntfy** am Smartphone installieren und diesen Topic abonnieren.
+Bei kritischen Ereignissen kommt dann eine Push-Meldung aufs Handy.
 
-## Schritt 4 — Backend starten
+### 1.4 Server starten
 
 ```bash
 node server.js
 ```
 
-Ausgabe sollte sein:
-  API (Agenten)  → http://localhost:3000
-  WebSocket      → ws://localhost:3001
+Erfolgreiche Ausgabe:
+
+```
+API (Agenten)  → http://localhost:3000
+WebSocket      → ws://localhost:3001
+Dashboard      → http://localhost:3000/netwatch-v5.html
+```
+
+### 1.5 Dashboard öffnen
+
+Im Browser aufrufen — ersetze die IP durch die deines Servers:
+
+```
+http://DEINE-SERVER-IP:3000/netwatch-v5.html
+```
+
+Der Server ist jetzt bereit. Im nächsten Schritt werden die Agenten
+auf den zu überwachenden Geräten installiert.
 
 ---
 
-## Schritt 5 — Agent auf einem Test-PC ausführen
+## Schritt 2 — Agent installieren
 
-agent.ps1 öffnen und BackendUrl anpassen:
+Der Agent läuft im Hintergrund und sendet alle 30–60 Sekunden
+Messdaten an den NetWatch-Server.
+
+### Windows
+
+1. `agent.ps1` und `install-windows.ps1` auf den Zielrechner kopieren
+2. In `agent.ps1` die Server-Adresse anpassen:
+
 ```powershell
 BackendUrl = "http://DEINE-SERVER-IP:3000/api/data"
 ```
 
-Dann im PowerShell (als Administrator):
+3. PowerShell als Administrator öffnen und ausführen:
+
 ```powershell
 Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
-powershell -File C:\NetWatch\agents\agent.ps1
+powershell -File agent.ps1
 ```
 
----
+Der Agent erscheint danach automatisch im Dashboard.
 
-## Schritt 6 — Dashboard öffnen
-
-Im Browser aufrufen:
-```
-http://localhost:3000/netwatch-v3.html
-```
-
-Oder die HTML-Datei direkt öffnen — dann aber in netwatch-v3.html
-die WebSocket-Verbindung aktivieren (siehe Kommentar im HTML).
-
----
-
-## Schritt 7 — Agent als Windows Dienst installieren
-
-PowerShell als Administrator:
+#### Als Windows-Dienst installieren (dauerhaft)
 
 ```powershell
-$params = @{
-    Name           = "NetWatchAgent"
-    DisplayName    = "NetWatch Monitoring Agent"
-    Description    = "Sendet Systemmetriken an das NetWatch Backend"
-    BinaryPathName = "powershell.exe -NonInteractive -ExecutionPolicy Bypass -File C:\NetWatch\agents\agent.ps1"
-    StartupType    = "Automatic"
-}
-New-Service @params
-Start-Service NetWatchAgent
+powershell -File install-windows.ps1
+```
+
+Startet automatisch mit Windows, kein manueller Neustart nötig.
+
+---
+
+### Linux & Mac
+
+`linux-agent.py` auf den Zielrechner kopieren und die Server-Adresse
+in der Datei anpassen (Zeile `SERVER_URL`), dann:
+
+```bash
+python3 linux-agent.py
+```
+
+#### One-Liner (ohne Datei herunterladen)
+
+```bash
+curl -s http://DEINE-SERVER-IP:3000/agents/linux-agent.py | python3 - --server http://DEINE-SERVER-IP:3000
+```
+
+#### Dauerhaft (systemd)
+
+```bash
+curl -s http://DEINE-SERVER-IP:3000/agents/linux-agent.py -o /opt/catscan-agent.py
+python3 /opt/catscan-agent.py --server http://DEINE-SERVER-IP:3000
 ```
 
 ---
 
-## SNMP Poller (für Drucker, USVs, APs)
+## Schritt 3 — SNMP für Drucker, USVs, APs (optional)
 
-In agents\snmp-poller.js die DEVICES-Liste befüllen,
-dann in einem zweiten Terminal:
+Geräte ohne Agent werden per SNMP abgefragt. Im zweiten Terminal:
 
 ```bash
 node agents/snmp-poller.js
 ```
 
+Am Gerät SNMP aktivieren und Community `public` setzen.
+Windows Firewall: UDP Port 161 freigeben.
+
 ---
 
 ## Häufige Fehler
 
-**"Cannot find module 'better-sqlite3'"**
-→ npm install nochmal ausführen
+**"Cannot find module ..."**
+→ `npm install` nochmal ausführen
 
 **"Access denied" bei PowerShell**
-→ Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+→ `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser`
 
-**Dashboard zeigt keine Daten**
-→ Prüfen ob server.js läuft und der Agent die richtige IP hat
+**Agent sendet, Dashboard zeigt nichts**
+→ Prüfen ob `server.js` läuft und der Agent die richtige IP hat
 
 **SNMP antwortet nicht**
-→ Am Gerät SNMP aktivieren und Community "public" setzen
-→ Windows Firewall: UDP Port 161 freigeben
+→ SNMP am Gerät aktivieren und Community "public" setzen
+→ Firewall: UDP Port 161 freigeben
