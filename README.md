@@ -21,8 +21,33 @@ Ein selbst entwickeltes Netzwerk-Monitoring-System — skalierbar für Heimnetzw
 
 ## Voraussetzungen
 
-- [Node.js](https://nodejs.org) ab Version 18
+- Node.js ab Version 18
 - Windows, Linux oder Raspberry Pi
+
+### Node.js installieren
+
+**Windows** — schnellste Methode per winget (als Administrator):
+```powershell
+winget install OpenJS.NodeJS
+```
+> winget fragt beim ersten Start nach der Zustimmung zu den Microsoft Store Nutzungsbedingungen — einfach mit **J** bestätigen. Node.js und npm werden danach automatisch installiert.
+
+Alternativ manuell von [nodejs.org](https://nodejs.org) herunterladen (LTS-Version empfohlen).
+
+**Linux/Mac** — Node.js ist meist vorinstalliert oder per Paketmanager verfügbar:
+```bash
+# Debian/Ubuntu
+sudo apt install nodejs npm
+
+# Mac
+brew install node
+```
+
+Installation prüfen:
+```bash
+node --version
+npm --version
+```
 
 ---
 
