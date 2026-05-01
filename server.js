@@ -1620,7 +1620,6 @@ async function pollAllDeviceHttpMetrics() {
 }
 
 // ── Hypervisor VM-Discovery ──────────────────────────────────
-// HTTPS-Request mit ignoriertem Self-Signed-Cert (Proxmox)
 function httpsGetJson(url, headers = {}, timeoutMs = 8000) {
   return new Promise((resolve, reject) => {
     const u    = new URL(url);
@@ -1643,6 +1642,93 @@ function httpsGetJson(url, headers = {}, timeoutMs = 8000) {
     });
     req.on('error', reject);
     req.on('timeout', () => { req.destroy(); reject(new Error('HTTPS timeout')); });
+    req.end();
+  });
+}
+
+function httpsPostJson(url, body, headers = {}, timeoutMs = 8000) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const payload = body != null ? JSON.stringify(body) : '';
+    const opts = {
+      hostname: u.hostname, port: parseInt(u.port) || 443,
+      path: u.pathname + u.search, method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'Accept': 'application/json', ...headers },
+      rejectUnauthorized: false, timeout: timeoutMs,
+    };
+    const req = https.request(opts, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
+        catch { resolve({ status: res.statusCode, body: data }); }
+      });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('HTTPS timeout')); });
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
+function httpsPostRaw(url, body, contentType = 'text/xml', headers = {}, timeoutMs = 12000) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const opts = {
+      hostname: u.hostname, port: parseInt(u.port) || 443,
+      path: u.pathname + u.search, method: 'POST',
+      headers: { 'Content-Type': contentType, 'Content-Length': Buffer.byteLength(body), ...headers },
+      rejectUnauthorized: false, timeout: timeoutMs,
+    };
+    const req = https.request(opts, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => resolve(data));
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('HTTPS timeout')); });
+    req.write(body);
+    req.end();
+  });
+}
+
+function httpPostRaw(url, body, contentType = 'text/xml', headers = {}, timeoutMs = 12000) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const opts = {
+      hostname: u.hostname, port: parseInt(u.port) || 80,
+      path: u.pathname + u.search, method: 'POST',
+      headers: { 'Content-Type': contentType, 'Content-Length': Buffer.byteLength(body), ...headers },
+      timeout: timeoutMs,
+    };
+    const req = http.request(opts, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => resolve(data));
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('HTTP timeout')); });
+    req.write(body);
+    req.end();
+  });
+}
+
+function httpGetJson(url, headers = {}, timeoutMs = 8000) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const opts = {
+      hostname: u.hostname, port: parseInt(u.port) || 80,
+      path: u.pathname + u.search, method: 'GET',
+      headers: { 'Accept': 'application/json', ...headers },
+      timeout: timeoutMs,
+    };
+    const req = http.request(opts, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => { try { resolve(JSON.parse(data)); } catch { resolve(null); } });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('HTTP timeout')); });
     req.end();
   });
 }
@@ -1704,18 +1790,184 @@ async function fetchProxmoxVms(baseUrl, token) {
   return { vms, host };
 }
 
+async function fetchPbsVms(baseUrl, token) {
+  const h = { 'Authorization': `PVEAPIToken=${token}` };
+  const nodes = await httpsGetJson(`${baseUrl}/api2/json/nodes`, h);
+  if (!nodes?.data?.length) return { vms: [], host: null };
+  const node = nodes.data[0].node;
+  const [nodeStatus, datastores] = await Promise.all([
+    httpsGetJson(`${baseUrl}/api2/json/nodes/${node}/status`, h).catch(() => null),
+    httpsGetJson(`${baseUrl}/api2/json/nodes/${node}/datastore`, h).catch(() => null),
+  ]);
+  let host = null;
+  const ns = nodeStatus?.data;
+  if (ns) host = {
+    cpu:  ns.cpu  != null ? Math.round(ns.cpu * 100) : null,
+    mem:  ns.memory?.total ? Math.round(ns.memory.used / ns.memory.total * 100) : null,
+    disk: ns.rootfs?.total ? Math.round(ns.rootfs.used / ns.rootfs.total * 100) : null,
+    mem_total_gb: ns.memory?.total ? Math.round(ns.memory.total / 1073741824 * 10) / 10 : null,
+  };
+  const vms = (datastores?.data || []).map(ds => ({
+    name: ds.store || 'datastore', state: 'running', cpu: 0, mem_gb: 0,
+    disk_gb: ds.total != null ? Math.round(ds.total / 1073741824 * 10) / 10 : 0,
+    type: 'datastore', vm_id: null,
+  }));
+  return { vms, host };
+}
+
+async function fetchVmwareVms(baseUrl, credentials) {
+  const colonIdx = (credentials || ':').indexOf(':');
+  const user = credentials.substring(0, colonIdx);
+  const pass = credentials.substring(colonIdx + 1);
+  const basic = Buffer.from(`${user}:${pass}`).toString('base64');
+
+  let sessionId = null;
+  try {
+    // vSphere 7.0+ REST API
+    const r = await httpsPostJson(`${baseUrl}/api/session`, null, { 'Authorization': `Basic ${basic}` });
+    sessionId = typeof r.body === 'string' ? r.body.trim() : null;
+  } catch {}
+  if (!sessionId) {
+    // vSphere 6.x fallback
+    const r = await httpsPostJson(`${baseUrl}/rest/com/vmware/cis/session`, null, { 'Authorization': `Basic ${basic}` });
+    sessionId = typeof r.body?.value === 'string' ? r.body.value : null;
+  }
+  if (!sessionId) throw new Error('VMware: Authentifizierung fehlgeschlagen');
+
+  const h = { 'vmware-api-session-id': sessionId };
+  let vmList = await httpsGetJson(`${baseUrl}/api/vcenter/vm`, h).catch(() => null);
+  if (!vmList) {
+    const r = await httpsGetJson(`${baseUrl}/rest/vcenter/vm`, h).catch(() => null);
+    vmList = r?.value || null;
+  }
+  const vms = (vmList || []).map(vm => ({
+    name: vm.name || vm.vm || 'VM',
+    state: vm.power_state === 'POWERED_ON' ? 'running' : vm.power_state === 'SUSPENDED' ? 'paused' : 'stopped',
+    cpu: 0, mem_gb: vm.memory_size_MiB != null ? Math.round(vm.memory_size_MiB / 1024 * 10) / 10 : 0,
+    disk_gb: 0, type: 'vm', vm_id: vm.vm || null,
+  }));
+  return { vms, host: null };
+}
+
+function xcpRpcXml(method, params) {
+  const p = params.map(v =>
+    `<param><value><string>${String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</string></value></param>`
+  ).join('');
+  return `<?xml version="1.0"?><methodCall><methodName>${method}</methodName><params>${p}</params></methodCall>`;
+}
+function xcpStr(block, field) {
+  const m = new RegExp(`<name>${field}<\\/name>\\s*<value><string>([^<]*)<\\/string>`).exec(block);
+  return m ? m[1] : null;
+}
+function xcpBool(block, field) {
+  const m = new RegExp(`<name>${field}<\\/name>\\s*<value><boolean>([01])<\\/boolean>`).exec(block);
+  return m ? m[1] === '1' : null;
+}
+
+async function fetchXcpngVms(baseUrl, credentials) {
+  const colonIdx = (credentials || 'root:').indexOf(':');
+  const user = credentials.substring(0, colonIdx) || 'root';
+  const pass = credentials.substring(colonIdx + 1);
+  const rpcUrl = `${baseUrl}/RPC2`;
+  const postRaw = baseUrl.startsWith('https') ? httpsPostRaw : httpPostRaw;
+
+  const loginResp = await postRaw(rpcUrl, xcpRpcXml('session.login_with_password', [user, pass, '1.3', 'NetWatch']));
+  const sessionMatch = /OpaqueRef:([^<"]+)/.exec(loginResp);
+  if (!sessionMatch) throw new Error('XCP-ng: Login fehlgeschlagen');
+  const sessionRef = `OpaqueRef:${sessionMatch[1]}`;
+
+  const vmResp = await postRaw(rpcUrl, xcpRpcXml('VM.get_all_records', [sessionRef]), 'text/xml', {}, 20000);
+  postRaw(rpcUrl, xcpRpcXml('session.logout', [sessionRef])).catch(() => {});
+
+  const vms = [];
+  const vmBlockRe = /<member>\s*<name>OpaqueRef:[^<]+<\/name>\s*<value>\s*<struct>([\s\S]*?)<\/struct>\s*<\/value>\s*<\/member>/g;
+  let m;
+  while ((m = vmBlockRe.exec(vmResp)) !== null) {
+    const blk = m[1];
+    if (xcpBool(blk, 'is_a_template') || xcpBool(blk, 'is_control_domain')) continue;
+    const powerState = xcpStr(blk, 'power_state') || 'Halted';
+    const memMax = parseInt(xcpStr(blk, 'memory_dynamic_max') || '0');
+    vms.push({
+      name: xcpStr(blk, 'name_label') || 'VM',
+      state: powerState === 'Running' ? 'running' : powerState === 'Paused' ? 'paused' : 'stopped',
+      cpu: 0, mem_gb: memMax > 0 ? Math.round(memMax / 1073741824 * 10) / 10 : 0,
+      disk_gb: 0, type: 'vm', vm_id: null,
+    });
+  }
+  return { vms, host: null };
+}
+
+async function fetchOvirtVms(baseUrl, credentials) {
+  const h = {
+    'Authorization': `Basic ${Buffer.from(credentials || ':').toString('base64')}`,
+    'Accept': 'application/json',
+  };
+  const data = await httpsGetJson(`${baseUrl}/ovirt-engine/api/vms`, h);
+  const rawList = data?.vm || data?.vms?.vm || data?.vms || [];
+  const vmList = Array.isArray(rawList) ? rawList : [rawList];
+  const vms = vmList.filter(Boolean).map(vm => ({
+    name: vm.name || 'VM',
+    state: vm.status?.state === 'up' ? 'running' : vm.status?.state === 'paused' ? 'paused' : 'stopped',
+    cpu: 0, mem_gb: vm.memory != null ? Math.round(vm.memory / 1073741824 * 10) / 10 : 0,
+    disk_gb: 0, type: 'vm', vm_id: vm.id || null,
+  }));
+  return { vms, host: null };
+}
+
+async function fetchNutanixVms(baseUrl, credentials) {
+  const h = { 'Authorization': `Basic ${Buffer.from(credentials || ':').toString('base64')}` };
+  const data = await httpsGetJson(`${baseUrl}/api/nutanix/v2.0/vms/`, h);
+  const vms = (data?.entities || []).map(vm => ({
+    name: vm.name || 'VM',
+    state: (vm.power_state || '').toLowerCase() === 'on' ? 'running' : 'stopped',
+    cpu: 0, mem_gb: vm.memory_mb != null ? Math.round(vm.memory_mb / 1024 * 10) / 10 : 0,
+    disk_gb: 0, type: 'vm', vm_id: vm.uuid || null,
+  }));
+  let host = null;
+  try {
+    const cluster = await httpsGetJson(`${baseUrl}/api/nutanix/v2.0/cluster/`, h);
+    if (cluster) host = { cpu: null, mem: null, disk: null, mem_total_gb: null };
+  } catch {}
+  return { vms, host };
+}
+
+async function fetchDockerVms(baseUrl) {
+  const [containers, info] = await Promise.all([
+    httpGetJson(`${baseUrl}/containers/json?all=true`).catch(() => null),
+    httpGetJson(`${baseUrl}/info`).catch(() => null),
+  ]);
+  let host = null;
+  if (info) host = {
+    cpu: null, mem: null, disk: null,
+    mem_total_gb: info.MemTotal ? Math.round(info.MemTotal / 1073741824 * 10) / 10 : null,
+  };
+  const vms = (containers || []).map(c => ({
+    name: (c.Names?.[0] || c.Id?.substring(0, 12) || 'container').replace(/^\//, ''),
+    state: c.State === 'running' ? 'running' : c.State === 'paused' ? 'paused' : 'stopped',
+    cpu: 0, mem_gb: 0, disk_gb: 0, type: 'container', vm_id: c.Id?.substring(0, 12) || null,
+  }));
+  return { vms, host };
+}
+
 async function pollHypervisorVms(dev) {
   if (!dev.hypervisor_type || !dev.hypervisor_url) return;
   try {
     let vms = [], host = null;
-    if (dev.hypervisor_type === 'proxmox') {
-      const result = await fetchProxmoxVms(dev.hypervisor_url, dev.hypervisor_token || '');
-      vms  = result.vms;
-      host = result.host;
-    }
+    const type  = dev.hypervisor_type;
+    const url   = dev.hypervisor_url;
+    const token = dev.hypervisor_token || '';
+    let result;
+    if      (type === 'proxmox') result = await fetchProxmoxVms(url, token);
+    else if (type === 'pbs')     result = await fetchPbsVms(url, token);
+    else if (type === 'vmware')  result = await fetchVmwareVms(url, token);
+    else if (type === 'xcpng')   result = await fetchXcpngVms(url, token);
+    else if (type === 'ovirt')   result = await fetchOvirtVms(url, token);
+    else if (type === 'nutanix') result = await fetchNutanixVms(url, token);
+    else if (type === 'docker')  result = await fetchDockerVms(url);
+    if (result) { vms = result.vms; host = result.host; }
     const now = Date.now();
 
-    // Host-Metriken (CPU/RAM/Disk des Proxmox-Servers) in metrics speichern
+    // Host-Metriken (CPU/RAM/Disk des Hypervisor-Hosts) in metrics speichern
     if (host && (host.cpu !== null || host.mem !== null)) {
       const cpu  = host.cpu  ?? 0;
       const mem  = host.mem  ?? 0;

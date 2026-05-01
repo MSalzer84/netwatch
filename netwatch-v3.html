@@ -3129,8 +3129,9 @@ function refreshDet(d) {
     <div class="d-sec">
       <div class="d-sec-t">Hypervisor / VMs</div>
       <div style="font-size:9px;color:var(--t3);font-family:var(--sans);margin-bottom:6px;line-height:1.5">
-        Verbindet sich mit dem Hypervisor und listet alle VMs / Container auf.<br>
-        Proxmox: API-Token unter <code style="background:var(--bg3);padding:1px 3px;border-radius:2px">Datacenter → API Tokens</code> erstellen.
+        Verbindet sich direkt mit dem Hypervisor und listet alle VMs / Container auf.<br>
+        Proxmox/PBS: API-Token unter <code style="background:var(--bg3);padding:1px 3px;border-radius:2px">Datacenter → API Tokens</code> erstellen.<br>
+        VMware / XCP-ng / oVirt / Nutanix: <code style="background:var(--bg3);padding:1px 3px;border-radius:2px">benutzer:passwort</code> eingeben.
       </div>
       <div id="hvcfg-${id}"><div style="font-size:9px;color:var(--t3)">Lade...</div></div>
     </div>`;
@@ -3193,30 +3194,66 @@ async function savePullConfig(hostname, id) {
   }
 }
 
+const HV_CFG = {
+  proxmox: { urlPh:'https://IP:8006',      tokenLbl:'API-Token',    tokenPh:'root@pam!netwatch=xxxxxxxx-…', showUrl:true, showToken:true },
+  pbs:     { urlPh:'https://IP:8007',      tokenLbl:'API-Token',    tokenPh:'root@pam!netwatch=xxxxxxxx-…', showUrl:true, showToken:true },
+  hyperv:  { urlPh:'',                     tokenLbl:'',             tokenPh:'',                              showUrl:false,showToken:false},
+  vmware:  { urlPh:'https://VCENTER-IP',   tokenLbl:'Zugangsdaten', tokenPh:'admin@vsphere.local:passwort', showUrl:true, showToken:true },
+  xcpng:   { urlPh:'https://XCP-HOST',     tokenLbl:'Zugangsdaten', tokenPh:'root:passwort',                showUrl:true, showToken:true },
+  ovirt:   { urlPh:'https://OVIRT-ENGINE', tokenLbl:'Zugangsdaten', tokenPh:'admin@internal:passwort',      showUrl:true, showToken:true },
+  nutanix: { urlPh:'https://IP:9440',      tokenLbl:'Zugangsdaten', tokenPh:'admin:passwort',               showUrl:true, showToken:true },
+  docker:  { urlPh:'http://IP:2375',       tokenLbl:'',             tokenPh:'',                              showUrl:true, showToken:false},
+};
+function updateHvFields(id) {
+  const typeEl    = document.getElementById(`hv-type-${id}`);
+  const urlRow    = document.getElementById(`hv-url-row-${id}`);
+  const tokenRow  = document.getElementById(`hv-token-row-${id}`);
+  const urlEl     = document.getElementById(`hv-url-${id}`);
+  const tokenLbl  = document.getElementById(`hv-token-lbl-${id}`);
+  const tokenEl   = document.getElementById(`hv-token-${id}`);
+  if (!typeEl) return;
+  const t = typeEl.value;
+  const c = HV_CFG[t] || { showUrl:false, showToken:false, urlPh:'', tokenLbl:'Zugangsdaten', tokenPh:'' };
+  if (urlRow)   urlRow.style.display   = (t && c.showUrl)   ? '' : 'none';
+  if (tokenRow) tokenRow.style.display = (t && c.showToken) ? '' : 'none';
+  if (urlEl)    urlEl.placeholder      = c.urlPh   || '';
+  if (tokenLbl) tokenLbl.textContent   = c.tokenLbl || 'Zugangsdaten';
+  if (tokenEl)  tokenEl.placeholder    = c.tokenPh  || '';
+}
 async function loadHypervisorConfig(hostname, id) {
   const el = document.getElementById(`hvcfg-${id}`);
   if (!el) return;
   try {
     const r = await fetch(`${API_URL}/api/devices/${encodeURIComponent(hostname)}/hypervisor-config`);
     const cfg = await r.json();
+    const t = cfg.type || '';
+    const opt = (v, lbl) => `<option value="${v}" ${t===v?'selected':''}>${lbl}</option>`;
     el.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:5px">
         <div class="fg">
           <label class="fl" style="font-size:9px">Typ</label>
-          <select class="fi" id="hv-type-${id}" style="font-size:9px" onchange="document.getElementById('hv-url-row-${id}').style.display=this.value?'':'none'">
-            <option value="" ${!cfg.type?'selected':''}>— kein Hypervisor —</option>
-            <option value="proxmox" ${cfg.type==='proxmox'?'selected':''}>Proxmox VE</option>
-            <option value="hyperv"  ${cfg.type==='hyperv'?'selected':''}>Hyper-V (via Agent)</option>
+          <select class="fi" id="hv-type-${id}" style="font-size:9px" onchange="updateHvFields('${id}')">
+            <option value="" ${!t?'selected':''}>— kein Hypervisor —</option>
+            ${opt('proxmox','Proxmox VE')}
+            ${opt('pbs','Proxmox Backup Server')}
+            ${opt('hyperv','Hyper-V (via Agent)')}
+            ${opt('vmware','VMware ESXi / vCenter')}
+            ${opt('xcpng','XCP-ng / XenServer')}
+            ${opt('ovirt','oVirt / RHEV')}
+            ${opt('nutanix','Nutanix Prism')}
+            ${opt('docker','Docker (Remote API)')}
           </select>
         </div>
-        <div id="hv-url-row-${id}" style="${cfg.type?'':'display:none'}">
+        <div id="hv-url-row-${id}" style="display:none">
           <div class="fg">
-            <label class="fl" style="font-size:9px">API-URL <span style="color:var(--t3)">(z.B. https://192.168.1.100:8006)</span></label>
-            <input class="fi" id="hv-url-${id}" style="font-size:9px" placeholder="https://PROXMOX-IP:8006" value="${cfg.url||''}">
+            <label class="fl" style="font-size:9px">API-URL</label>
+            <input class="fi" id="hv-url-${id}" style="font-size:9px" value="${cfg.url||''}">
           </div>
-          <div class="fg" id="hv-token-row-${id}">
-            <label class="fl" style="font-size:9px">API-Token <span style="color:var(--t3)">user@pam!tokenid=uuid</span></label>
-            <input class="fi" id="hv-token-${id}" style="font-size:9px;font-family:var(--mono)" placeholder="root@pam!netwatch=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value="${cfg.token||''}">
+        </div>
+        <div id="hv-token-row-${id}" style="display:none">
+          <div class="fg">
+            <label class="fl" id="hv-token-lbl-${id}" style="font-size:9px">Zugangsdaten</label>
+            <input class="fi" id="hv-token-${id}" style="font-size:9px;font-family:var(--mono)" value="${cfg.token||''}">
           </div>
         </div>
         <div style="display:flex;gap:6px;align-items:center;margin-top:2px">
@@ -3225,6 +3262,7 @@ async function loadHypervisorConfig(hostname, id) {
         </div>
         <div id="hv-vms-${id}" style="margin-top:6px"></div>
       </div>`;
+    updateHvFields(id);
     if (cfg.type) loadVmList(hostname, id);
   } catch { el.innerHTML = `<span style="font-size:9px;color:var(--t3)">Fehler beim Laden.</span>`; }
 }

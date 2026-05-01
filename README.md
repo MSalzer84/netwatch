@@ -30,6 +30,34 @@ Ein selbst entwickeltes Netzwerk-Monitoring-System — skalierbar für Heimnetzw
 - **Kiosk-Alarme** — Vollbild-Flash, Alarmton, persistenter Banner mit Bestätigen-Button, native Browser-Benachrichtigung (auch bei minimiertem Fenster); konfigurierbar welche Ereignisse auslösen (Offline / Kritisch / Warnung)
 - **Hyper-V Installer** — `http://<SERVER-IP>:3000/download/install-hyperv-agent.bat` — fragt nach Standort/Gruppe, richtet Agent mit VM-Erkennung als Windows-Dienst ein
 - **Dashboard von überall erreichbar** — URL verwendet jetzt automatisch den richtigen Hostnamen statt localhost
+- **Erweiterte Hypervisor-Integration** — VMware ESXi/vCenter, XCP-ng/XenServer, oVirt/RHEV, Nutanix Prism, Docker Remote API, Proxmox Backup Server
+
+---
+
+## Hypervisor-Integration
+
+Gerät im Dashboard öffnen → **Hypervisor / VMs** → Typ wählen → Zugangsdaten eintragen → Speichern.
+
+| Hypervisor | Typ | Zugangsdaten | URL-Format |
+|---|---|---|---|
+| Proxmox VE | `proxmox` | API-Token (`user@pam!tokenid=uuid`) | `https://IP:8006` |
+| Proxmox Backup Server | `pbs` | API-Token (`user@pam!tokenid=uuid`) | `https://IP:8007` |
+| Hyper-V | `hyperv` | — (via Agent) | — |
+| VMware ESXi / vCenter | `vmware` | `benutzer:passwort` | `https://VCENTER-IP` |
+| XCP-ng / XenServer | `xcpng` | `benutzer:passwort` | `https://XCP-HOST` |
+| oVirt / RHEV | `ovirt` | `admin@internal:passwort` | `https://OVIRT-ENGINE` |
+| Nutanix Prism | `nutanix` | `benutzer:passwort` | `https://IP:9440` |
+| Docker Remote API | `docker` | — (kein Auth) | `http://IP:2375` |
+
+**Proxmox API-Token erstellen:** Datacenter → API Tokens → Add → Token-ID vergeben, „Privilege Separation" deaktivieren.
+
+**VMware:** Erfordert vSphere 6.5+ mit aktivierter REST API. Der Benutzer braucht mindestens Read-Only Rolle auf dem vCenter.
+
+**Docker:** Die Remote API muss auf dem Docker-Host aktiviert sein. Beispiel in `/etc/docker/daemon.json`:
+```json
+{"hosts": ["tcp://0.0.0.0:2375", "unix:///var/run/docker.sock"]}
+```
+> Achtung: Port 2375 ohne TLS — nur im lokalen Netz verwenden oder per Firewall absichern.
 
 ---
 
