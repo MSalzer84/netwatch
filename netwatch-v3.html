@@ -1619,6 +1619,8 @@ async function startScan(subnets) {
   btn.disabled = false; updateScanBtn();
 }
 
+let scanSelected = new Set();
+
 function scanHostRow(h, isKnown) {
   const accent  = isKnown ? 'var(--cyan)' : 'var(--green)';
   const opacity = isKnown ? 'opacity:.65;' : '';
@@ -1629,7 +1631,10 @@ function scanHostRow(h, isKnown) {
   const macTxt  = mac ? `<span style="font-size:8px;color:var(--t3);font-family:var(--mono)">${mac}</span>` : '';
   const rightSide = isKnown
     ? `<span style="font-size:9px;color:var(--t3);font-family:var(--sans)">${h.hostname}</span>`
-    : `<button class="btn p" style="font-size:9px;padding:2px 8px;flex-shrink:0" onclick="addFromScan('${h.ip}')">+ Hinzufügen</button>`;
+    : `<label style="display:flex;align-items:center;gap:5px;cursor:pointer;flex-shrink:0">
+        <input type="checkbox" data-scan-ip="${h.ip}" onchange="toggleScanSel('${h.ip}',this.checked)" style="width:14px;height:14px;accent-color:var(--green);cursor:pointer;">
+        <button class="btn" style="font-size:9px;padding:2px 8px;flex-shrink:0" onclick="addFromScan('${h.ip}')">+ Einzeln</button>
+       </label>`;
   return `<div style="display:flex;align-items:center;gap:7px;background:var(--bg2);border:1px solid var(--border);border-left:3px solid ${accent};border-radius:3px;padding:6px 9px;margin-bottom:4px;${opacity}">
     <span style="width:6px;height:6px;border-radius:50%;background:${accent};flex-shrink:0"></span>
     <div style="flex:1;min-width:0">
@@ -1643,27 +1648,137 @@ function scanHostRow(h, isKnown) {
   </div>`;
 }
 
+function toggleScanSel(ip, checked) {
+  checked ? scanSelected.add(ip) : scanSelected.delete(ip);
+  updateBulkBar();
+}
+function selectAllNewScan() {
+  document.querySelectorAll('[data-scan-ip]').forEach(cb => { cb.checked=true; scanSelected.add(cb.dataset.scanIp); });
+  updateBulkBar();
+}
+function selectNoneScan() {
+  document.querySelectorAll('[data-scan-ip]').forEach(cb => { cb.checked=false; });
+  scanSelected.clear();
+  updateBulkBar();
+}
+function updateBulkBar() {
+  const bar = document.getElementById('scan-bulk-bar');
+  const cnt = document.getElementById('scan-bulk-cnt');
+  if (!bar) return;
+  bar.style.display = scanSelected.size > 0 ? 'flex' : 'none';
+  cnt.textContent = scanSelected.size;
+}
+
 function renderScanResults(data) {
   const el = document.getElementById('scan-results');
+  scanSelected.clear();
   if (!data.hosts.length) {
     el.innerHTML = `<div style="text-align:center;padding:20px;color:var(--t3);font-family:var(--sans);font-size:11px">Keine Geräte gefunden.<br>Prüfe Subnetz oder Firewall-Regeln.</div>`;
     return;
   }
-  // Merge ARP-Cache-Daten in Ping-Ergebnisse (falls Ping kein MAC hat)
   data.hosts.forEach(h => { if (!h.mac && arpCache[h.ip]) Object.assign(h, arpCache[h.ip]); });
 
   const unknown = data.hosts.filter(h => !h.known);
   const known   = data.hosts.filter(h =>  h.known);
+
+  const l1 = LEVELS[0]||'Standort', l2 = LEVELS[1]||'Netzwerk', l3 = LEVELS[2]||'Gruppe';
+
   let html = `<div style="font-size:9px;color:var(--t3);font-family:var(--sans);margin:10px 0 8px">${data.found} Geräte · <span style="color:var(--green)">${unknown.length} neu</span> · <span style="color:var(--cyan)">${known.length} bekannt</span></div>`;
+
   if (unknown.length) {
-    html += `<div style="font-size:9px;color:var(--t3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px;font-family:var(--sans)">Neue Geräte</div>`;
+    html += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:7px;flex-wrap:wrap;">
+      <span style="font-size:9px;color:var(--t3);letter-spacing:.08em;text-transform:uppercase;font-family:var(--sans);flex:1">Neue Geräte</span>
+      <button class="btn" style="font-size:9px;padding:2px 8px" onclick="selectAllNewScan()">☑ Alle wählen</button>
+      <button class="btn" style="font-size:9px;padding:2px 8px" onclick="selectNoneScan()">☐ Keine</button>
+    </div>`;
     html += unknown.map(h => scanHostRow(h, false)).join('');
   }
   if (known.length) {
     html += `<div style="font-size:9px;color:var(--t3);letter-spacing:.08em;text-transform:uppercase;margin:10px 0 5px;font-family:var(--sans)">Bereits erfasst</div>`;
     html += known.map(h => scanHostRow(h, true)).join('');
   }
+
+  html += `
+  <div id="scan-bulk-bar" style="display:none;position:sticky;bottom:0;background:var(--bg1);border:1px solid var(--green);border-radius:6px;padding:10px 12px;margin-top:10px;flex-direction:column;gap:8px;box-shadow:0 -4px 16px rgba(0,0,0,.4);">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:11px;font-weight:600;color:var(--green);font-family:var(--mono);">⬇ <span id="scan-bulk-cnt">0</span> Geräte ausgewählt</span>
+      <span style="font-size:9px;color:var(--t3);font-family:var(--sans);">Gemeinsame Einstellungen für alle:</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
+      <div><div style="font-size:8px;color:var(--t3);font-family:var(--sans);margin-bottom:2px;">${l1}</div>
+        <input class="fi" id="bulk-l1" placeholder="${l1}" style="font-size:9px;padding:4px 6px;">
+      </div>
+      <div><div style="font-size:8px;color:var(--t3);font-family:var(--sans);margin-bottom:2px;">${l2}</div>
+        <input class="fi" id="bulk-l2" placeholder="${l2}" style="font-size:9px;padding:4px 6px;">
+      </div>
+      <div><div style="font-size:8px;color:var(--t3);font-family:var(--sans);margin-bottom:2px;">${l3}</div>
+        <input class="fi" id="bulk-l3" placeholder="${l3}" style="font-size:9px;padding:4px 6px;">
+      </div>
+      <div><div style="font-size:8px;color:var(--t3);font-family:var(--sans);margin-bottom:2px;">Typ</div>
+        <select class="fi" id="bulk-type" style="font-size:9px;padding:4px 6px;">
+          <option value="">Auto</option>
+          <option value="client">Client</option>
+          <option value="server">Server</option>
+          <option value="nas">NAS</option>
+          <option value="switch">Switch</option>
+          <option value="ap">Access Point</option>
+          <option value="usv">USV</option>
+          <option value="printer">Drucker</option>
+          <option value="router">Router</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button class="btn p" style="font-size:10px;padding:5px 14px;" onclick="bulkAddFromScan()">✓ Alle ausgewählten speichern</button>
+      <span id="bulk-add-status" style="font-size:9px;color:var(--t3);font-family:var(--sans);"></span>
+    </div>
+  </div>`;
+
   el.innerHTML = html;
+}
+
+async function bulkAddFromScan() {
+  if (!scanSelected.size) return;
+  const l1 = document.getElementById('bulk-l1').value.trim() || 'Unbekannt';
+  const l2 = document.getElementById('bulk-l2').value.trim() || 'Unbekannt';
+  const l3 = document.getElementById('bulk-l3').value.trim() || 'Unbekannt';
+  const bulkType = document.getElementById('bulk-type').value;
+  const statusEl = document.getElementById('bulk-add-status');
+  const ips = [...scanSelected];
+  statusEl.textContent = `0 / ${ips.length} gespeichert…`;
+  statusEl.style.color = 'var(--t2)';
+  const prefixMap = { nas:'NAS', server:'SRV', router:'RTR', switch:'SW', ap:'AP', usv:'USV', printer:'PRN', client:'PC' };
+  let ok = 0, fail = 0;
+  for (const ip of ips) {
+    const arp = arpCache[ip] || allScanResults.find(h=>h.ip===ip) || {};
+    const type = bulkType || arp.suggestedType || 'client';
+    const prefix = prefixMap[type] || 'DEV';
+    const lastOctet = ip.split('.').pop();
+    const hostname = `${prefix}-${lastOctet}`;
+    const cfg = { ip, type, path_l1: l1, path_l2: l2, path_l3: l3, os: '', tags: [] };
+    try {
+      const r = await fetch(`${API_URL}/api/devices`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hostname, ...cfg }),
+      });
+      if (r.ok) {
+        devCfg[hostname] = cfg;
+        let d = DEVICES.find(x=>x.hostname===hostname);
+        if (!d) DEVICES.push({ id:hostname, hostname, ...cfg, status:'unknown', cpu:0, mem:0, disk:0, ping:null, uptime:'--' });
+        ok++;
+      } else { fail++; }
+    } catch { fail++; }
+    statusEl.textContent = `${ok+fail} / ${ips.length} gespeichert…`;
+  }
+  localStorage.setItem('cs_devs', JSON.stringify(devCfg));
+  buildTree(); renderMain();
+  statusEl.style.color = fail ? 'var(--yellow)' : 'var(--green)';
+  statusEl.textContent = `✓ ${ok} gespeichert${fail ? ` · ${fail} Fehler` : ''}`;
+  scanSelected.clear();
+  document.querySelectorAll('[data-scan-ip]').forEach(cb => cb.checked=false);
+  updateBulkBar();
+  toast(`${ok} Geräte hinzugefügt${fail?' · '+fail+' Fehler':''}`, ok ? 'ok' : 'err');
 }
 
 function addFromScan(ip) {
