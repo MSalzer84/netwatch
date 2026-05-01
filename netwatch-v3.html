@@ -1081,8 +1081,8 @@ function sensorStatus(val, def) {
 }
 function pingStatus(ms) {
   if (ms === null) return 'off';
-  if (ms >= LAT_WARN) return 'warn';
   if (ms >= 150) return 'crit';
+  if (ms >= LAT_WARN) return 'warn';
   return 'ok';
 }
 function devStatus(d) {
