@@ -49,6 +49,8 @@ node --version
 npm --version
 ```
 
+> **Hinweis Windows:** Nach der Installation per winget muss das Terminal neu gestartet werden, damit `node` erkannt wird — PowerShell-Fenster schließen und neu öffnen.
+
 ---
 
 ## Installation
