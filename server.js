@@ -2406,69 +2406,58 @@ app.get('/netwatch', (req, res) => {
 app.get('/download/install-agent.bat', (req, res) => {
   const host = req.headers.host || `localhost:${CONFIG.API_PORT}`;
   const serverUrl = `http://${host}`;
-  const bat = `@echo off
-chcp 65001 >nul
-echo.
-echo  ╔══════════════════════════════════════════╗
-echo  ║       NetWatch Agent - Installation      ║
-echo  ╚══════════════════════════════════════════╝
-echo.
-
-:: Als Administrator prüfen
-net session >nul 2>&1
-if %errorLevel% neq 0 (
-    echo  [FEHLER] Bitte als Administrator ausfuehren!
-    echo  Rechtsklick auf die Datei → Als Administrator ausfuehren
-    pause
-    exit /b 1
-)
-
-set SERVER=${serverUrl}
-set INSTALLDIR=%ProgramData%\\NetWatch
-set AGENTFILE=%INSTALLDIR%\\agent.ps1
-set TASKNAME=NetWatch-Agent
-
-echo  Server: %SERVER%
-echo  Zielordner: %INSTALLDIR%
-echo.
-
-:: Ordner erstellen
-if not exist "%INSTALLDIR%" mkdir "%INSTALLDIR%"
-
-:: Agent herunterladen
-echo  [1/3] Lade Agent herunter...
-powershell -Command "Invoke-WebRequest -Uri '%SERVER%/agents/agent.ps1' -OutFile '%AGENTFILE%' -UseBasicParsing"
-if not exist "%AGENTFILE%" (
-    echo  [FEHLER] Download fehlgeschlagen. Netzwerk oder Server pruefen.
-    pause
-    exit /b 1
-)
-echo       OK
-
-:: Geplante Aufgabe einrichten
-echo  [2/3] Richte geplante Aufgabe ein...
-schtasks /delete /tn "%TASKNAME%" /f >nul 2>&1
-schtasks /create /tn "%TASKNAME%" /tr "powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File \"%AGENTFILE%\" -Server %SERVER% -Interval 60" /sc onstart /ru SYSTEM /f >nul
-if %errorLevel% neq 0 (
-    echo  [FEHLER] Geplante Aufgabe konnte nicht erstellt werden.
-    pause
-    exit /b 1
-)
-echo       OK
-
-:: Sofort starten
-echo  [3/3] Starte Agent...
-schtasks /run /tn "%TASKNAME%" >nul
-echo       OK
-
-echo.
-echo  ══════════════════════════════════════════════
-echo  Agent laeuft! Geraet erscheint in Kuerze im
-echo  NetWatch Dashboard: %SERVER%/netwatch-v5.html
-echo  ══════════════════════════════════════════════
-echo.
-pause
-`;
+  const lines = [
+    '@echo off',
+    'setlocal',
+    'echo.',
+    'echo  ==========================================',
+    'echo     NetWatch Agent - Installation',
+    'echo  ==========================================',
+    'echo.',
+    'net session >nul 2>&1',
+    'if %errorLevel% neq 0 (',
+    '    echo  [FEHLER] Bitte als Administrator ausfuehren!',
+    '    echo  Rechtsklick auf die Datei - Als Administrator ausfuehren',
+    '    pause',
+    '    exit /b 1',
+    ')',
+    `set SERVER=${serverUrl}`,
+    'set INSTALLDIR=%ProgramData%\\NetWatch',
+    'set AGENTFILE=%INSTALLDIR%\\agent.ps1',
+    'set TASKNAME=NetWatch-Agent',
+    'echo  Server: %SERVER%',
+    'echo  Zielordner: %INSTALLDIR%',
+    'echo.',
+    'if not exist "%INSTALLDIR%" mkdir "%INSTALLDIR%"',
+    'echo  [1/3] Lade Agent herunter...',
+    'powershell -Command "Invoke-WebRequest -Uri \'%SERVER%/agents/agent.ps1\' -OutFile \'%AGENTFILE%\' -UseBasicParsing"',
+    'if not exist "%AGENTFILE%" (',
+    '    echo  [FEHLER] Download fehlgeschlagen. Server und Netzwerk pruefen.',
+    '    pause',
+    '    exit /b 1',
+    ')',
+    'echo     OK',
+    'echo  [2/3] Richte geplante Aufgabe ein...',
+    'schtasks /delete /tn "%TASKNAME%" /f >nul 2>&1',
+    'schtasks /create /tn "%TASKNAME%" /tr "powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File \\"%AGENTFILE%\\" -Server %SERVER% -Interval 60" /sc onstart /ru SYSTEM /f >nul',
+    'if %errorLevel% neq 0 (',
+    '    echo  [FEHLER] Geplante Aufgabe konnte nicht erstellt werden.',
+    '    pause',
+    '    exit /b 1',
+    ')',
+    'echo     OK',
+    'echo  [3/3] Starte Agent...',
+    'schtasks /run /tn "%TASKNAME%" >nul',
+    'echo     OK',
+    'echo.',
+    'echo  ==========================================',
+    'echo  Agent laeuft! Geraet erscheint in Kuerze',
+    `echo  im Dashboard: ${serverUrl}/netwatch-v3.html`,
+    'echo  ==========================================',
+    'echo.',
+    'pause',
+  ];
+  const bat = lines.join('\r\n') + '\r\n';
   res.setHeader('Content-Type', 'application/octet-stream');
   res.setHeader('Content-Disposition', 'attachment; filename="install-agent.bat"');
   res.send(bat);
@@ -2477,87 +2466,89 @@ pause
 app.get('/download/install-hyperv-agent.bat', (req, res) => {
   const host = req.headers.host || `localhost:${CONFIG.API_PORT}`;
   const serverUrl = `http://${host}`;
-  const bat = `@echo off
-chcp 65001 >nul
-echo.
-echo  ╔══════════════════════════════════════════╗
-echo  ║    NetWatch Hyper-V Agent - Installation  ║
-echo  ╚══════════════════════════════════════════╝
-echo.
-
-:: Als Administrator prüfen
-net session >nul 2>&1
-if %errorLevel% neq 0 (
-    echo  [FEHLER] Bitte als Administrator ausfuehren!
-    echo  Rechtsklick auf die Datei → Als Administrator ausfuehren
-    pause
-    exit /b 1
-)
-
-:: Hyper-V prüfen
-powershell -Command "Get-WindowsFeature -Name Hyper-V | Where-Object InstallState -eq Installed" >nul 2>&1
-if %errorLevel% neq 0 (
-    echo  [FEHLER] Hyper-V ist auf diesem System nicht installiert.
-    pause
-    exit /b 1
-)
-
-set SERVER=${serverUrl}
-set INSTALLDIR=%ProgramData%\\NetWatch
-set AGENTFILE=%INSTALLDIR%\\agent.ps1
-set TASKNAME=NetWatch-HyperV-Agent
-
-echo  Server: %SERVER%
-echo  Zielordner: %INSTALLDIR%
-echo.
-
-:: Standort / Gruppe abfragen
-set /p SITE=Standort (z.B. Wien HQ):
-if "%SITE%"=="" set SITE=Standort
-set /p NETWORK=Netzwerk (z.B. Servernetz):
-if "%NETWORK%"=="" set NETWORK=Netzwerk
-set /p GROUP=Gruppe (z.B. Hyper-V):
-if "%GROUP%"=="" set GROUP=Hyper-V
-
-:: Ordner erstellen
-if not exist "%INSTALLDIR%" mkdir "%INSTALLDIR%"
-
-:: Agent herunterladen
-echo.
-echo  [1/3] Lade Agent herunter...
-powershell -Command "Invoke-WebRequest -Uri '%SERVER%/agents/agent.ps1' -OutFile '%AGENTFILE%' -UseBasicParsing"
-if not exist "%AGENTFILE%" (
-    echo  [FEHLER] Download fehlgeschlagen. Server und Netzwerk pruefen.
-    pause
-    exit /b 1
-)
-echo       OK
-
-:: Geplante Aufgabe einrichten
-echo  [2/3] Richte geplante Aufgabe ein...
-schtasks /delete /tn "%TASKNAME%" /f >nul 2>&1
-schtasks /create /tn "%TASKNAME%" /tr "powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File \"%AGENTFILE%\" -Server %SERVER% -HyperV -Type server -Site \"%SITE%\" -Network \"%NETWORK%\" -Group \"%GROUP%\" -Interval 60" /sc onstart /ru SYSTEM /f >nul
-if %errorLevel% neq 0 (
-    echo  [FEHLER] Geplante Aufgabe konnte nicht erstellt werden.
-    pause
-    exit /b 1
-)
-echo       OK
-
-:: Sofort starten
-echo  [3/3] Starte Agent...
-schtasks /run /tn "%TASKNAME%" >nul
-echo       OK
-
-echo.
-echo  ══════════════════════════════════════════════
-echo  Hyper-V Agent laeuft!
-echo  Host + VMs erscheinen in Kuerze im Dashboard:
-echo  %SERVER%/netwatch-v3.html
-echo  ══════════════════════════════════════════════
-echo.
-pause
-`;
+  const lines = [
+    '@echo off',
+    'setlocal',
+    'echo.',
+    'echo  ==========================================',
+    'echo     NetWatch Hyper-V Agent - Installation',
+    'echo  ==========================================',
+    'echo.',
+    '',
+    ':: Als Administrator pruefen',
+    'net session >nul 2>&1',
+    'if %errorLevel% neq 0 (',
+    '    echo  [FEHLER] Bitte als Administrator ausfuehren!',
+    '    echo  Rechtsklick auf die Datei - Als Administrator ausfuehren',
+    '    pause',
+    '    exit /b 1',
+    ')',
+    '',
+    ':: Hyper-V pruefen',
+    'powershell -Command "Get-WindowsFeature -Name Hyper-V | Where-Object InstallState -eq Installed" >nul 2>&1',
+    'if %errorLevel% neq 0 (',
+    '    echo  [FEHLER] Hyper-V ist auf diesem System nicht installiert.',
+    '    pause',
+    '    exit /b 1',
+    ')',
+    '',
+    `set SERVER=${serverUrl}`,
+    'set INSTALLDIR=%ProgramData%\\NetWatch',
+    'set AGENTFILE=%INSTALLDIR%\\agent.ps1',
+    'set TASKNAME=NetWatch-HyperV-Agent',
+    '',
+    'echo  Server: %SERVER%',
+    'echo  Zielordner: %INSTALLDIR%',
+    'echo.',
+    '',
+    ':: Standort / Gruppe abfragen',
+    'set /p SITE=Standort (z.B. Wien HQ): ',
+    'if "%SITE%"=="" set SITE=Standort',
+    'set /p NETWORK=Netzwerk (z.B. Servernetz): ',
+    'if "%NETWORK%"=="" set NETWORK=Netzwerk',
+    'set /p GROUP=Gruppe (z.B. Hyper-V): ',
+    'if "%GROUP%"=="" set GROUP=Hyper-V',
+    '',
+    ':: Ordner erstellen',
+    'if not exist "%INSTALLDIR%" mkdir "%INSTALLDIR%"',
+    '',
+    ':: Agent herunterladen',
+    'echo.',
+    'echo  [1/3] Lade Agent herunter...',
+    'powershell -Command "Invoke-WebRequest -Uri \'%SERVER%/agents/agent.ps1\' -OutFile \'%AGENTFILE%\' -UseBasicParsing"',
+    'if not exist "%AGENTFILE%" (',
+    '    echo  [FEHLER] Download fehlgeschlagen. Server und Netzwerk pruefen.',
+    '    pause',
+    '    exit /b 1',
+    ')',
+    'echo       OK',
+    '',
+    ':: Geplante Aufgabe einrichten',
+    'echo  [2/3] Richte geplante Aufgabe ein...',
+    'schtasks /delete /tn "%TASKNAME%" /f >nul 2>&1',
+    'schtasks /create /tn "%TASKNAME%" /tr "powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File \\"%AGENTFILE%\\" -Server %SERVER% -HyperV -Type server -Site \\"%SITE%\\" -Network \\"%NETWORK%\\" -Group \\"%GROUP%\\" -Interval 60" /sc onstart /ru SYSTEM /f >nul',
+    'if %errorLevel% neq 0 (',
+    '    echo  [FEHLER] Geplante Aufgabe konnte nicht erstellt werden.',
+    '    pause',
+    '    exit /b 1',
+    ')',
+    'echo       OK',
+    '',
+    ':: Sofort starten',
+    'echo  [3/3] Starte Agent...',
+    'schtasks /run /tn "%TASKNAME%" >nul',
+    'echo       OK',
+    '',
+    'echo.',
+    'echo  ==========================================',
+    'echo  Hyper-V Agent laeuft!',
+    'echo  Host + VMs erscheinen in Kuerze im Dashboard:',
+    `echo  ${serverUrl}/netwatch-v3.html`,
+    'echo  ==========================================',
+    'echo.',
+    'pause',
+  ];
+  const bat = lines.join('\r\n') + '\r\n';
   res.setHeader('Content-Type', 'application/octet-stream');
   res.setHeader('Content-Disposition', 'attachment; filename="install-hyperv-agent.bat"');
   res.send(bat);
