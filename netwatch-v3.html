@@ -400,6 +400,16 @@ canvas.lat-chart{width:100%;height:44px;display:block;margin-top:5px}
 .k-tile-alert.vis{display:block}
 /* Ticker */
 .k-ticker{background:var(--bg1);border-top:1px solid var(--border);padding:4px 16px;flex-shrink:0;display:flex;align-items:center;gap:10px;overflow:hidden;min-height:24px}
+.k-alert-overlay{position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:0;transition:opacity .1s;}
+.k-alert-overlay.flash{animation:kAlertFlash 1.2s ease-out forwards;}
+@keyframes kAlertFlash{0%{opacity:.85;background:rgba(239,68,68,.55);}40%{opacity:.6;background:rgba(239,68,68,.35);}100%{opacity:0;}}
+.k-alert-banner{position:fixed;top:0;left:0;right:0;z-index:9998;background:rgba(239,68,68,.95);color:#fff;display:flex;align-items:center;gap:14px;padding:10px 20px;font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:.04em;box-shadow:0 4px 24px rgba(239,68,68,.5);transform:translateY(-100%);transition:transform .3s ease;}
+.k-alert-banner.show{transform:translateY(0);}
+.k-alert-banner-ico{font-size:1.4rem;animation:kPulse 1s ease-in-out infinite;}
+.k-alert-banner-msg{flex:1;}
+.k-alert-banner-ack{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:5px;padding:5px 14px;font-size:11px;cursor:pointer;font-family:var(--mono);font-weight:600;}
+.k-alert-banner-ack:hover{background:rgba(255,255,255,.35);}
+@keyframes kPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.2);}}
 .k-tick-l{font-size:8px;color:var(--cyan);letter-spacing:.12em;text-transform:uppercase;white-space:nowrap;font-family:var(--sans)}
 .k-tick-t{flex:1;overflow:hidden;white-space:nowrap}
 .k-tick-i{display:inline-block;animation:stk 50s linear infinite}
@@ -875,6 +885,27 @@ canvas.lat-chart{width:100%;height:44px;display:block;margin-top:5px}
         <div class="ks-chk"    id="kchk-os"      onclick="toggleKChk('os')">🔖 OS / IP</div>
         <div class="ks-chk on" id="kchk-vms"     onclick="toggleKChk('vms')">🖥 VMs / Container</div>
       </div>
+      <div class="ks-sec-t">Benachrichtigungen im Kiosk</div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <div class="ks-chk on" id="kchk-alert-flash"  onclick="toggleKAlert('flash')">⚡ Vollbild-Flash</div>
+          <div class="ks-chk on" id="kchk-alert-sound"  onclick="toggleKAlert('sound')">🔔 Alarmton</div>
+          <div class="ks-chk on" id="kchk-alert-banner" onclick="toggleKAlert('banner')">🔴 Alarm-Banner</div>
+          <div class="ks-chk"    id="kchk-alert-browser" onclick="toggleKAlert('browser')">🖥 Browser-Benachrichtigung</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">
+          <div class="ks-opt-l">Auslösen bei</div>
+          <select class="ks-inp" id="kAlertLevel" style="flex:1">
+            <option value="off">Nur Offline</option>
+            <option value="crit" selected>Offline + Kritisch</option>
+            <option value="warn">Offline + Kritisch + Warnung</option>
+          </select>
+        </div>
+        <div style="font-size:8px;color:var(--t3);font-family:var(--sans);line-height:1.5;">
+          Browser-Benachrichtigung erscheint auch wenn das Fenster minimiert ist.
+          <span id="kBrowserPermBtn" style="color:var(--cyan);cursor:pointer;text-decoration:underline;display:none;" onclick="requestKioskNotifPerm()">Berechtigung erteilen →</span>
+        </div>
+      </div>
       <div class="ks-sec-t">Bereiche / Geräte auswählen</div>
       <div style="display:flex;gap:6px;margin-bottom:6px">
         <button class="btn" style="font-size:9px;padding:3px 8px" onclick="kioskAll()">Alle wählen</button>
@@ -891,6 +922,12 @@ canvas.lat-chart{width:100%;height:44px;display:block;margin-top:5px}
 
 <!-- KIOSK VIEW -->
 <div class="kiosk" id="kiosk">
+  <div class="k-alert-overlay" id="kAlertOverlay"></div>
+  <div class="k-alert-banner" id="kAlertBanner">
+    <div class="k-alert-banner-ico">🚨</div>
+    <div class="k-alert-banner-msg" id="kAlertBannerMsg">ALARM</div>
+    <button class="k-alert-banner-ack" onclick="ackKioskAlert()">✓ Bestätigen</button>
+  </div>
   <div class="k-head">
     <div class="k-logo">
       <svg width="22" height="22" viewBox="0 0 20 20" fill="none"><path d="M3 9 L0 3 L6.5 7.5 Z" fill="#06b6d4"/><path d="M17 9 L20 3 L13.5 7.5 Z" fill="#06b6d4"/><circle cx="10" cy="12" r="8" fill="#07090d" stroke="#06b6d4" stroke-width="1.5"/><ellipse cx="7.5" cy="11" rx="1.3" ry="1.7" fill="#06b6d4"/><ellipse cx="12.5" cy="11" rx="1.3" ry="1.7" fill="#06b6d4"/><polygon points="10,13.5 9,15 11,15" fill="#06b6d4"/><line x1="1.5" y1="12.5" x2="7" y2="12.5" stroke="#06b6d4" stroke-width="0.6" opacity="0.65"/><line x1="1.5" y1="14.5" x2="7" y2="14" stroke="#06b6d4" stroke-width="0.6" opacity="0.65"/><line x1="13" y1="12.5" x2="18.5" y2="12.5" stroke="#06b6d4" stroke-width="0.6" opacity="0.65"/><line x1="13" y1="14" x2="18.5" y2="14.5" stroke="#06b6d4" stroke-width="0.6" opacity="0.65"/></svg>
@@ -988,8 +1025,8 @@ canvas.lat-chart{width:100%;height:44px;display:block;margin-top:5px}
 // ═══════════════════════════════════════════
 // KONFIGURATION
 // ═══════════════════════════════════════════
-const WS_URL  = 'ws://localhost:3001';
-const API_URL = 'http://localhost:3000';
+const WS_URL  = `ws://${location.hostname}:3001`;
+const API_URL = `http://${location.hostname}:3000`;
 const PAGE_SIZE = 60;
 
 let LEVELS = JSON.parse(localStorage.getItem('cs_levels') || 'null') || [
@@ -1170,11 +1207,12 @@ function handleMsg(msg) {
     if(selId===id||selId===d.hostname) refreshDet(d);
     renderMain();
     kioskUpdateDevice(d.hostname);
+    checkKioskAlert(d.hostname);
     return;
   }
   if (msg.type==='alert_acked') { ALERTS=ALERTS.filter(a=>a.id!==msg.id); renderAlerts(); return; }
   if (msg.type==='settings') return; // kein Re-Render nötig
-  if (msg.type==='offline') { const d=DEVICES.find(x=>x.hostname===msg.hostname); if(d){d.status='off';renderSummary();renderMain();} return; }
+  if (msg.type==='offline') { const d=DEVICES.find(x=>x.hostname===msg.hostname); if(d){d.status='off';renderSummary();renderMain();checkKioskAlert(d.hostname);} return; }
   if (msg.type==='device_updated') {
     const d=DEVICES.find(x=>x.hostname===msg.device.hostname);
     if(d){ Object.assign(d,msg.device); buildTree(); renderMain(); if(selId===devId(d))refreshDet(d); }
@@ -1981,7 +2019,7 @@ async function showAlertHistory(hostname, id) {
       </div>`;
     }).join('');
   } catch(e) {
-    el.innerHTML = `<div style="font-size:9px;color:var(--red)">${e.message}</div>`;
+    el.innerHTML = `<div style="font-size:9px;color:var(--t3)">Alarmverlauf nicht verfügbar.</div>`;
   }
 }
 
@@ -3370,6 +3408,111 @@ function toggleKA(a,el){if(kiosk_areas.includes(a))kiosk_areas=kiosk_areas.filte
 function kioskAll(){kiosk_areas=[...new Set(DEVICES.map(d=>d.path_l1).filter(Boolean))];document.querySelectorAll('.ks-area').forEach(el=>el.classList.add('chk'));}
 function kioskNone(){kiosk_areas=[];document.querySelectorAll('.ks-area').forEach(el=>el.classList.remove('chk'));}
 
+// ═══════════════════════════════════════════
+// KIOSK ALERT SYSTEM
+// ═══════════════════════════════════════════
+let kioskAlertCfg = { flash:true, sound:true, banner:true, browser:false, level:'crit' };
+const kioskPrevStatus = {};
+const kioskMuted = new Set();
+
+function loadKioskAlertCfg() {
+  try { const s=localStorage.getItem('nw_kiosk_alert'); if(s) kioskAlertCfg={...kioskAlertCfg,...JSON.parse(s)}; } catch{}
+  ['flash','sound','banner','browser'].forEach(k=>{
+    const el=document.getElementById('kchk-alert-'+k);
+    if(el) el.classList.toggle('on', kioskAlertCfg[k]);
+  });
+  const lvl=document.getElementById('kAlertLevel');
+  if(lvl) lvl.value=kioskAlertCfg.level;
+  const permBtn=document.getElementById('kBrowserPermBtn');
+  if(permBtn) permBtn.style.display=(kioskAlertCfg.browser && Notification.permission!=='granted')?'inline':'none';
+}
+function toggleKAlert(k) {
+  kioskAlertCfg[k]=!kioskAlertCfg[k];
+  document.getElementById('kchk-alert-'+k).classList.toggle('on',kioskAlertCfg[k]);
+  if(k==='browser' && kioskAlertCfg.browser && Notification.permission!=='granted') {
+    document.getElementById('kBrowserPermBtn').style.display='inline';
+  } else {
+    document.getElementById('kBrowserPermBtn').style.display='none';
+  }
+  localStorage.setItem('nw_kiosk_alert', JSON.stringify(kioskAlertCfg));
+}
+function requestKioskNotifPerm() {
+  Notification.requestPermission().then(p=>{
+    if(p==='granted') document.getElementById('kBrowserPermBtn').style.display='none';
+  });
+}
+function saveKioskAlertLevel() {
+  kioskAlertCfg.level=document.getElementById('kAlertLevel').value;
+  localStorage.setItem('nw_kiosk_alert', JSON.stringify(kioskAlertCfg));
+}
+
+function statusSeverity(st) {
+  if(st==='off'||st==='unknown') return 3;
+  if(st==='crit') return 2;
+  if(st==='warn') return 1;
+  return 0;
+}
+function alertLevelThreshold() {
+  const l=kioskAlertCfg.level;
+  if(l==='off')   return 3;
+  if(l==='crit')  return 2;
+  if(l==='warn')  return 1;
+  return 2;
+}
+
+function checkKioskAlert(hostname) {
+  if(!kioskIsOpen()) return;
+  const d=DEVICES.find(x=>x.hostname===hostname);
+  if(!d || kioskMuted.has(hostname)) return;
+  const newSt=devStatus(d);
+  const oldSt=kioskPrevStatus[hostname];
+  kioskPrevStatus[hostname]=newSt;
+  if(oldSt===undefined) return;
+  if(newSt===oldSt) return;
+  const sev=statusSeverity(newSt);
+  if(sev < alertLevelThreshold()) return;
+  if(sev <= statusSeverity(oldSt)) return; // nur wenn schlechter wird
+  const label = newSt==='off'?'OFFLINE':newSt==='crit'?'KRITISCH':'WARNUNG';
+  triggerKioskAlert(hostname, label);
+}
+
+function triggerKioskAlert(hostname, label) {
+  const msg=`${hostname} — ${label}`;
+  if(kioskAlertCfg.flash) {
+    const ov=document.getElementById('kAlertOverlay');
+    ov.classList.remove('flash');
+    void ov.offsetWidth;
+    ov.classList.add('flash');
+  }
+  if(kioskAlertCfg.banner) {
+    document.getElementById('kAlertBannerMsg').textContent=msg;
+    document.getElementById('kAlertBanner').classList.add('show');
+  }
+  if(kioskAlertCfg.sound) playAlarmSound();
+  if(kioskAlertCfg.browser && Notification.permission==='granted') {
+    new Notification('NetWatch — '+label, { body: hostname, icon: '', tag: hostname });
+  }
+}
+function ackKioskAlert() {
+  document.getElementById('kAlertBanner').classList.remove('show');
+}
+function playAlarmSound() {
+  try {
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    [0,0.25,0.5].forEach(t=>{
+      const osc=ctx.createOscillator();
+      const gain=ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type='square';
+      osc.frequency.setValueAtTime(880, ctx.currentTime+t);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime+t);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+t+0.18);
+      osc.start(ctx.currentTime+t);
+      osc.stop(ctx.currentTime+t+0.18);
+    });
+  } catch{}
+}
+
 function launchKiosk(){
   const rot=parseInt(document.getElementById('kRotSec').value)||0;
   const cols=parseInt(document.getElementById('kCols').value)||3;
@@ -3575,6 +3718,8 @@ renderAlerts();
 tick();
 setInterval(tick,1000);
 connectWS();
+loadKioskAlertCfg();
+document.getElementById('kAlertLevel').addEventListener('change', saveKioskAlertLevel);
 </script>
 </body>
 </html>
