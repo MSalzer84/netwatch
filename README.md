@@ -29,7 +29,7 @@ Ein selbst entwickeltes Netzwerk-Monitoring-System — skalierbar für Heimnetzw
 - **Bulk-Import nach Scan** — Checkboxen pro Gerät, gemeinsame Felder (Standort, Netzwerk, Gruppe, Typ) für alle auf einmal setzen
 - **Kiosk-Alarme** — Vollbild-Flash, Alarmton, persistenter Banner mit Bestätigen-Button, native Browser-Benachrichtigung (auch bei minimiertem Fenster); konfigurierbar welche Ereignisse auslösen (Offline / Kritisch / Warnung)
 - **Hyper-V Installer** — `http://<SERVER-IP>:3000/download/install-hyperv-agent.bat` — fragt nach Standort/Gruppe, richtet Agent mit VM-Erkennung als Windows-Dienst ein
-- **Dashboard von überall erreichbar** — URL verwendet jetzt automatisch den richtigen Hostnamen statt localhost
+- **Dashboard von allen Geräten im selben Netz erreichbar** — URL verwendet automatisch die IP des Servers statt localhost; einfach `http://<SERVER-IP>:3000/netwatch-v3.html` von jedem PC/Tablet im lokalen Netz aufrufen
 - **Erweiterte Hypervisor-Integration** — VMware ESXi/vCenter, XCP-ng/XenServer, oVirt/RHEV, Nutanix Prism, Docker Remote API, Proxmox Backup Server
 
 ---
