@@ -19,22 +19,19 @@ Ein selbst entwickeltes Netzwerk-Monitoring-System — skalierbar für Heimnetzw
 
 ---
 
-## Voraussetzungen
+## Server einrichten
 
-- Node.js ab Version 18
-- Windows, Linux oder Raspberry Pi
+### Schritt 1 — Node.js installieren
 
-### Node.js installieren
-
-**Windows** — schnellste Methode per winget (als Administrator):
+**Windows** — PowerShell als Administrator öffnen und ausführen:
 ```powershell
 winget install OpenJS.NodeJS
 ```
-> winget fragt beim ersten Start nach der Zustimmung zu den Microsoft Store Nutzungsbedingungen — einfach mit **J** bestätigen. Node.js und npm werden danach automatisch installiert.
+> winget fragt beim ersten Start nach Zustimmung zu den Nutzungsbedingungen — mit **J** bestätigen.
 
-Alternativ manuell von [nodejs.org](https://nodejs.org) herunterladen (LTS-Version empfohlen).
+Alternativ manuell von [nodejs.org](https://nodejs.org) herunterladen (LTS-Version).
 
-**Linux/Mac** — Node.js ist meist vorinstalliert oder per Paketmanager verfügbar:
+**Linux/Mac:**
 ```bash
 # Debian/Ubuntu
 sudo apt install nodejs npm
@@ -43,56 +40,66 @@ sudo apt install nodejs npm
 brew install node
 ```
 
-Installation prüfen:
-```bash
-node --version
-npm --version
-```
-
-> **Hinweis Windows:** Nach der Installation per winget muss das Terminal neu gestartet werden, damit `node` erkannt wird — PowerShell-Fenster schließen und neu öffnen.
-
-> **Hinweis PowerShell:** Falls `npm install` mit `Ausführung von Skripts deaktiviert` fehlschlägt, einmalig folgenden Befehl ausführen und mit **J** bestätigen:
-> ```powershell
-> Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
-> ```
+> **Wichtig Windows:** Nach der Installation das Terminal-Fenster **schließen und neu öffnen** — erst dann ist `node` verfügbar.
 
 ---
 
-## Installation
+### Schritt 2 — NetWatch herunterladen
 
-### Mit git (empfohlen)
-
-```bash
+**Option A — per git (empfohlen):**
+```powershell
+cd C:\
 git clone https://github.com/MSalzer84/netwatch.git
-cd netwatch
-npm install
-node server.js
 ```
 
-### Als ZIP herunterladen
-
+**Option B — als ZIP:**
 1. Auf GitHub den grünen Button **Code → Download ZIP** klicken
-2. ZIP nach **`C:\`** entpacken — es entsteht der Ordner `C:\netwatch-main`
+2. ZIP nach `C:\` entpacken — es entsteht der Ordner `C:\netwatch-main`
 3. Ordner umbenennen: `netwatch-main` → `netwatch`
-4. Terminal im Ordner `C:\netwatch` öffnen und ausführen:
 
+> **Wichtig:** Der Ordner muss `netwatch` heißen (nicht `netwatch-main`), damit alle Pfade korrekt funktionieren.
+
+---
+
+### Schritt 3 — Abhängigkeiten installieren
+
+Terminal im Ordner `C:\netwatch` öffnen:
 ```powershell
 cd C:\netwatch
 npm install
-node server.js
 ```
 
-> **Wichtig:** Der Ordner muss `netwatch` heißen (nicht `netwatch-main`), damit alle Pfade in den Befehlen und Scripts korrekt funktionieren.
+> **Falls npm blockiert wird** (`Ausführung von Skripts deaktiviert`): Einmalig ausführen und mit **J** bestätigen:
+> ```powershell
+> Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+> ```
+> Danach `npm install` erneut ausführen.
 
 ---
 
-Das Dashboard ist danach erreichbar unter:
+### Schritt 4 — Server starten
 
+```powershell
+node server.js
+```
+
+Erfolgreiche Ausgabe:
+```
+API (Agenten)  -> http://localhost:3000
+WebSocket      -> ws://localhost:3001
+Dashboard      -> http://localhost:3000/netwatch-v3.html
+```
+
+---
+
+### Schritt 5 — Dashboard öffnen
+
+Im Browser aufrufen — ersetze die IP durch die deines Servers:
 ```
 http://<DEINE-IP>:3000/netwatch-v3.html
 ```
 
-Die eigene IP herausfinden:
+Eigene IP herausfinden:
 - **Windows:** `ipconfig`
 - **Linux/Mac:** `ip a`
 
