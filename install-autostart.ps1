@@ -50,8 +50,19 @@ Start-Sleep -Seconds 2
 
 $state = (Get-ScheduledTask -TaskName $taskName).State
 Write-Host "Task-Status: $state" -ForegroundColor $(if ($state -eq 'Running') { 'Green' } else { 'Yellow' })
+
+# Eigene Netzwerk-IP ermitteln
+$localIp = try {
+    $sock = [System.Net.Sockets.UdpClient]::new(); $sock.Connect("8.8.8.8", 80)
+    $ip = $sock.Client.LocalEndPoint.Address.ToString(); $sock.Close(); $ip
+} catch { "localhost" }
+
 Write-Host ""
 Write-Host "Fertig! Der NetWatch-Server startet ab jetzt automatisch mit Windows." -ForegroundColor Green
-Write-Host "Dashboard: http://localhost:3000/netwatch-v3.html" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "Zugriff von diesem PC:        http://localhost:3000/netwatch-v3.html" -ForegroundColor Cyan
+Write-Host "Zugriff aus dem Netzwerk:     http://${localIp}:3000/netwatch-v3.html" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "Agents konfigurieren mit:     --server http://${localIp}:3000" -ForegroundColor Yellow
 Write-Host ""
 pause
