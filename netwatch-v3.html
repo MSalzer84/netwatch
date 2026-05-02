@@ -1254,7 +1254,7 @@ function handleMsg(msg) {
     if (msg.ping!==null&&msg.ping!==undefined) { if(!latHist[id])latHist[id]=[]; latHist[id].push(msg.ping); if(latHist[id].length>20)latHist[id].shift(); }
     document.getElementById('lastUpd').textContent=new Date().toLocaleTimeString('de-AT',{hour12:false});
     renderSummary(); buildTree();
-    if(selId===id||selId===d.hostname) refreshDet(d);
+    if(selId===id||selId===d.hostname) { if(!isDetEditing()) refreshDet(d); }
     renderMain();
     kioskUpdateDevice(d.hostname);
     checkKioskAlert(d.hostname);
@@ -1267,7 +1267,7 @@ function handleMsg(msg) {
     const d=DEVICES.find(x=>x.hostname===msg.device.hostname);
     if(d){ Object.assign(d,msg.device); } else { DEVICES.push(msg.device); }
     buildTree(); renderMain();
-    if(selId===devId(msg.device)||selId===msg.device.hostname) refreshDet(msg.device);
+    if(selId===devId(msg.device)||selId===msg.device.hostname) { if(!isDetEditing()) refreshDet(msg.device); }
     return;
   }
   if (msg.type==='device_deleted') {
@@ -1309,7 +1309,7 @@ function handleMsg(msg) {
   }
   if (msg.type==='mac_update') {
     const d=DEVICES.find(x=>x.hostname===msg.hostname);
-    if(d){ d.mac=msg.mac; if(selId===devId(d)||selId===d.hostname) refreshDet(d); }
+    if(d){ d.mac=msg.mac; if(selId===devId(d)||selId===d.hostname) { if(!isDetEditing()) refreshDet(d); } }
     return;
   }
 }
@@ -3457,6 +3457,10 @@ async function loadCustomSensors(hostname, id) {
   }
 }
 function closeDet() { document.getElementById('det').classList.remove('open'); selId=null; }
+function isDetEditing() {
+  const body = document.getElementById('det-body');
+  return body && body.querySelector('input:focus, select:focus, textarea:focus') !== null;
+}
 function dRow(k,v) { return`<div class="d-row"><span class="d-k">${k}</span><span class="d-v">${v}</span></div>`; }
 
 // ═══════════════════════════════════════════
