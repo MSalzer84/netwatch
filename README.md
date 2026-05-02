@@ -171,6 +171,39 @@ pm2 start agents/linux-agent.py --name netwatch-agent --interpreter python3 -- -
 pm2 save && pm2 startup
 ```
 
+### Synology NAS
+
+Kein pip, keine Installation — der Synology-Agent verwendet nur die Python-Standardbibliothek.
+
+**Voraussetzung:** SSH aktivieren — DSM → Systemsteuerung → Terminal & SNMP → SSH-Dienst aktivieren
+
+**Schritt 1 — Agent herunterladen** (per SSH auf der NAS):
+```bash
+curl -o ~/synology-agent.py http://<SERVER-IP>:3000/agents/synology-agent.py
+```
+
+**Schritt 2 — Testen:**
+```bash
+python3 ~/synology-agent.py --server http://<SERVER-IP>:3000 --once
+```
+
+Erfolgreiche Ausgabe: `[OK] CPU:0.5%  RAM:14.6%  Disk:4.4%  Up:33d 18h`
+
+**Schritt 3 — Dauerhaft einrichten:**
+
+DSM → Systemsteuerung → Aufgabenplaner → Erstellen → Ausgelöste Aufgabe → Benutzerdefiniertes Script
+
+| Feld | Wert |
+|------|------|
+| Aufgabenname | NetWatch Agent |
+| Benutzer | (dein DSM-Benutzer) |
+| Ereignis | Booten |
+| Script | `python3 ~/synology-agent.py --server http://<SERVER-IP>:3000` |
+
+Rechtsklick auf die Aufgabe → **Ausführen** — Agent startet sofort und sendet alle 60 Sekunden.
+
+> **Hinweis:** Befindet sich die NAS in einem anderen Subnetz als der NetWatch-Server, muss auf dem Router/Firewall (z.B. OPNsense) eine Regel vorhanden sein, die TCP-Traffic vom NAS-Subnetz zu `<SERVER-IP>:3000` erlaubt.
+
 ---
 
 ## Server dauerhaft laufen lassen
