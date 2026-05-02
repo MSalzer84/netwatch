@@ -602,6 +602,11 @@ app.post('/api/data', async (req, res) => {
       broadcast({ type: 'vms_update', hostname: d.hostname, vms: d.vms });
     }
 
+    if (d.mac) {
+      await db.run('UPDATE devices SET mac = ? WHERE id = ?', [d.mac, device.id]);
+      device.mac = d.mac;
+    }
+
     await checkAlerts(device, d, now);
     broadcastUpdate(device, d, status);
 

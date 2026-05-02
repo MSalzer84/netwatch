@@ -65,6 +65,17 @@ function Get-LocalIP {
     }
 }
 
+function Get-PrimaryMac {
+    try {
+        $ip = Get-LocalIP
+        $idx = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -eq $ip } | Select-Object -First 1).InterfaceIndex
+        if ($idx) {
+            return (Get-NetAdapter | Where-Object { $_.InterfaceIndex -eq $idx } | Select-Object -First 1).MacAddress.Replace('-',':').ToUpper()
+        }
+    } catch {}
+    return $null
+}
+
 function Get-OsInfo {
     $os = Get-CimInstance Win32_OperatingSystem
     return ($os.Caption -replace "Microsoft ", "") + " (Build $($os.BuildNumber))"
@@ -250,6 +261,7 @@ function Collect-And-Send {
     $payload = @{
         hostname = $hn
         ip       = $ip
+        mac      = Get-PrimaryMac
         os       = Get-OsInfo
         type     = $Type
         path_l1  = $Site

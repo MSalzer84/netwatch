@@ -69,6 +69,22 @@ def get_ip():
     except Exception:
         return "unbekannt"
 
+def get_mac():
+    """Liefert die MAC-Adresse des primären Netzwerk-Interfaces."""
+    try:
+        primary_ip = get_ip()
+        for _, addrs in psutil.net_if_addrs().items():
+            ipv4s = [a.address for a in addrs if a.family == socket.AF_INET]
+            if primary_ip in ipv4s:
+                for a in addrs:
+                    if a.family == psutil.AF_LINK:
+                        mac = a.address.upper().replace('-', ':')
+                        if mac and mac != '00:00:00:00:00:00':
+                            return mac
+    except Exception:
+        pass
+    return None
+
 def get_os_info():
     """Liest /etc/os-release für Distro-Name und Version."""
     try:
@@ -351,6 +367,7 @@ def collect(args, bw_in_kbps=None, bw_out_kbps=None):
     payload = {
         "hostname": args.hostname or get_hostname(),
         "ip":       args.ip       or get_ip(),
+        "mac":      get_mac(),
         "os":       get_os_info(),
         "type":     args.type,
         "path_l1":  args.site,
