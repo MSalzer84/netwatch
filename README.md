@@ -15,6 +15,7 @@ Selbst entwickeltes Netzwerk-Monitoring — skalierbar vom Heimnetz bis zur Firm
 - [Server dauerhaft einrichten ⭐](#server-dauerhaft-einrichten-)
 - [Datenbank & Verlässlichkeit](#datenbank--verlässlichkeit)
 - [Agents installieren](#agents-installieren)
+- [Proxmox vollständig einrichten](#proxmox-vollständig-einrichten)
 - [Hypervisor-Integration](#hypervisor-integration)
 - [Schwellwerte](#schwellwerte)
 - [Ports](#ports)
@@ -273,6 +274,112 @@ DSM → Systemsteuerung → Aufgabenplaner → Erstellen → Ausgelöste Aufgabe
 Rechtsklick auf die Aufgabe → **Ausführen** — Agent startet sofort und sendet alle 60 Sekunden.
 
 > **Anderes Subnetz:** Auf dem Router/Firewall (z.B. OPNsense) eine Regel erstellen, die TCP-Traffic vom NAS-Subnetz zu `<SERVER-IP>:3000` erlaubt.
+
+---
+
+## Proxmox vollständig einrichten
+
+Proxmox läuft auf Debian Linux. Es gibt **zwei unabhängige Teile**:
+
+| Teil | Was es bringt |
+|---|---|
+| **A — Agent auf dem Host** | CPU, RAM, Disk, Temperatur des Proxmox-Nodes im Dashboard |
+| **B — VM-Integration** | Alle VMs und Container im Dashboard sichtbar, mit Status |
+
+Beide Teile ergänzen sich — am besten beides einrichten.
+
+---
+
+### Teil A — Agent auf dem Proxmox-Host
+
+Per SSH auf den Proxmox-Server verbinden, dann:
+
+**Schritt 1 — Agent herunterladen:**
+```bash
+curl -o /opt/netwatch-agent.py http://<SERVER-IP>:3000/agents/linux-agent.py
+```
+
+**Schritt 2 — Einmalig testen:**
+```bash
+python3 /opt/netwatch-agent.py --server http://<SERVER-IP>:3000 --once
+```
+
+Erfolgreiche Ausgabe:
+```
+[OK] CPU:2.1%  RAM:34.5%  Disk:18.2%  Up:5d 3h
+```
+
+**Schritt 3 — Systemd-Service erstellen (läuft dauerhaft):**
+
+```bash
+cat > /etc/systemd/system/netwatch-agent.service << 'EOF'
+[Unit]
+Description=NetWatch Agent
+After=network.target
+
+[Service]
+ExecStart=python3 /opt/netwatch-agent.py --server http://<SERVER-IP>:3000 --type server --site Standort --network Netzwerk --group Proxmox
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+> `--site`, `--network`, `--group` anpassen — so erscheint der Node im Geräte-Baum.
+
+```bash
+systemctl daemon-reload
+systemctl enable netwatch-agent
+systemctl start netwatch-agent
+```
+
+**Status prüfen:**
+```bash
+systemctl status netwatch-agent
+```
+
+---
+
+### Teil B — VM-Integration (API-Token)
+
+Damit NetWatch alle VMs und Container des Proxmox-Nodes sieht.
+
+**Schritt 1 — API-Token in Proxmox erstellen:**
+
+1. Proxmox Web-GUI öffnen: `https://<PROXMOX-IP>:8006`
+2. **Datacenter → API Tokens → Add**
+3. Felder ausfüllen:
+
+| Feld | Wert |
+|------|------|
+| User | `root@pam` |
+| Token ID | `netwatch` |
+| Privilege Separation | **deaktivieren** ← wichtig |
+
+4. **Add** klicken → Token-Secret erscheint (nur einmal sichtbar!) → kopieren
+
+Der vollständige Token sieht so aus:
+```
+root@pam!netwatch=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+```
+
+**Schritt 2 — Token im NetWatch-Dashboard eintragen:**
+
+1. Im Dashboard auf den Proxmox-Node klicken
+2. Rechts: **Hypervisor / VMs** aufklappen
+3. Felder ausfüllen:
+
+| Feld | Wert |
+|------|------|
+| Typ | `Proxmox VE` |
+| URL | `https://<PROXMOX-IP>:8006` |
+| Token | `root@pam!netwatch=<token-secret>` |
+
+4. **Speichern** — VMs erscheinen nach wenigen Sekunden
+
+> **Selbstsigniertes Zertifikat:** Proxmox verwendet standardmäßig ein selbstsigniertes TLS-Zertifikat. NetWatch akzeptiert dies automatisch.
 
 ---
 
