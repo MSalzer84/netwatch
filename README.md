@@ -16,6 +16,7 @@ Selbst entwickeltes Netzwerk-Monitoring — skalierbar vom Heimnetz bis zur Firm
 - [Datenbank & Verlässlichkeit](#datenbank--verlässlichkeit)
 - [Agents installieren](#agents-installieren)
 - [Proxmox vollständig einrichten](#proxmox-vollständig-einrichten)
+- [Hyper-V vollständig einrichten](#hyper-v-vollständig-einrichten)
 - [Hypervisor-Integration](#hypervisor-integration)
 - [Schwellwerte](#schwellwerte)
 - [Ports](#ports)
@@ -380,6 +381,106 @@ root@pam!netwatch=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 4. **Speichern** — VMs erscheinen nach wenigen Sekunden
 
 > **Selbstsigniertes Zertifikat:** Proxmox verwendet standardmäßig ein selbstsigniertes TLS-Zertifikat. NetWatch akzeptiert dies automatisch.
+
+---
+
+## Hyper-V vollständig einrichten
+
+Der Hyper-V Agent läuft direkt auf dem Windows-Host und liefert sowohl die Host-Metriken (CPU, RAM, Disk) als auch alle VMs mit Status, CPU und RAM — **kein API-Token nötig**.
+
+### Voraussetzungen
+
+- Windows Server oder Windows 10/11 mit aktivierter **Hyper-V Rolle**
+- NetWatch-Server läuft und ist vom Hyper-V-Host aus erreichbar
+- Installation muss als **Administrator** durchgeführt werden
+
+---
+
+### Schritt 1 — Installer herunterladen
+
+Im Browser des Hyper-V-Hosts aufrufen:
+
+```
+http://<SERVER-IP>:3000/download/install-hyperv-agent.bat
+```
+
+Die Datei wird automatisch heruntergeladen.
+
+> Alternativ direkt im Browser öffnen — Windows fragt ob die Datei gespeichert oder ausgeführt werden soll.
+
+---
+
+### Schritt 2 — Installer als Administrator ausführen
+
+**Rechtsklick** auf `install-hyperv-agent.bat` → **„Als Administrator ausführen"**
+
+Das Script fragt dann interaktiv nach drei Angaben:
+
+| Eingabe | Beispiel | Beschreibung |
+|---------|---------|--------------|
+| Standort | `Wien HQ` | Ebene 1 im Geräte-Baum |
+| Netzwerk | `Servernetz` | Ebene 2 im Geräte-Baum |
+| Gruppe | `Hyper-V` | Ebene 3 im Geräte-Baum |
+
+Felder leer lassen → Standardwerte werden verwendet.
+
+---
+
+### Schritt 3 — Was passiert automatisch
+
+Das Script erledigt alles selbst:
+
+1. Lädt `agent.ps1` vom NetWatch-Server herunter → speichert nach `C:\ProgramData\NetWatch\agent.ps1`
+2. Erstellt eine geplante Aufgabe **„NetWatch-HyperV-Agent"** — startet automatisch beim Windows-Start als SYSTEM
+3. Startet den Agent sofort
+
+Erfolgreiche Ausgabe am Ende:
+```
+==========================================
+Hyper-V Agent laeuft!
+Host + VMs erscheinen in Kuerze im Dashboard.
+==========================================
+```
+
+---
+
+### Schritt 4 — Dashboard prüfen
+
+Nach ca. 60 Sekunden erscheint der Hyper-V-Host im Dashboard. Wenn du ihn aufklappst, siehst du unter den Sensor-Zeilen alle VMs mit Status (Running / Off) und Ressourcenverbrauch.
+
+---
+
+### Fehlerbehebung
+
+**VMs erscheinen nicht:**
+
+Prüfen ob die Hyper-V PowerShell-Module verfügbar sind:
+```powershell
+Get-Command Get-VM
+```
+Falls nicht gefunden — Hyper-V Tools nachinstallieren:
+```powershell
+# Windows Server
+Install-WindowsFeature -Name Hyper-V-PowerShell
+
+# Windows 10/11
+Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Management-PowerShell
+```
+
+**Task prüfen:**
+```powershell
+Get-ScheduledTask -TaskName "NetWatch-HyperV-Agent" | Select-Object State
+```
+
+**Task neu starten:**
+```powershell
+Start-ScheduledTask -TaskName "NetWatch-HyperV-Agent"
+```
+
+**Task entfernen (falls nötig):**
+```powershell
+Unregister-ScheduledTask -TaskName "NetWatch-HyperV-Agent" -Confirm:$false
+```
 
 ---
 
