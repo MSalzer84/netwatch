@@ -24,6 +24,22 @@ Ein selbst entwickeltes Netzwerk-Monitoring-System — skalierbar für Heimnetzw
 
 ---
 
+## Warn- & Kritisch-Schwellwerte
+
+Die Standardwerte gelten für alle Geräte. Ping-Schwellwerte sind im Dashboard unter **Einstellungen → Latenz** anpassbar.
+
+| Sensor | Einheit | Warnung | Kritisch |
+|--------|---------|---------|----------|
+| CPU | % | ≥ 75 % | ≥ 90 % |
+| RAM | % | ≥ 80 % | ≥ 90 % |
+| Disk | % | ≥ 80 % | ≥ 90 % |
+| Ping | ms | ≥ 50 ms | ≥ 150 ms |
+| Temperatur | °C | ≥ 75 °C | ≥ 85 °C |
+
+> Temperatur wird nur angezeigt, wenn der Agent sie liefert (Linux, Synology, Windows mit WMI-Unterstützung).
+
+---
+
 ## Neu
 
 - **Bulk-Import nach Scan** — Checkboxen pro Gerät, gemeinsame Felder (Standort, Netzwerk, Gruppe, Typ) für alle auf einmal setzen
