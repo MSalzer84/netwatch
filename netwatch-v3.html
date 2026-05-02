@@ -1098,6 +1098,7 @@ const SENSOR_DEFS = [
   { id:'mem',  label:'RAM',  unit:'%',  icon:_si(`<rect x="1" y="5" width="14" height="6" rx="1"/><line x1="4" y1="5" x2="4" y2="8"/><line x1="7" y1="5" x2="7" y2="8"/><line x1="10" y1="5" x2="10" y2="8"/><line x1="13" y1="5" x2="13" y2="8"/><line x1="2.5" y1="11" x2="2.5" y2="13"/><line x1="5.5" y1="11" x2="5.5" y2="13"/><line x1="8.5" y1="11" x2="8.5" y2="13"/><line x1="11.5" y1="11" x2="11.5" y2="13"/>`), warnDef:80, critDef:90  },
   { id:'disk', label:'Disk', unit:'%',  icon:_si(`<rect x="1.5" y="3" width="13" height="10" rx="1"/><ellipse cx="8" cy="8" rx="3" ry="2.5"/><circle cx="8" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="12.5" cy="11" r=".8" fill="currentColor" stroke="none"/>`), warnDef:80, critDef:90  },
   { id:'ping', label:'Ping', unit:'ms', icon:_si(`<polyline points="1,8 3.5,8 5,4 7,12 9,5.5 10.5,8 15,8"/>`), warnDef:50, critDef:100 },
+  { id:'temp', label:'Temp', unit:'°C', icon:_si(`<line x1="8" y1="2" x2="8" y2="9"/><circle cx="8" cy="11.5" r="2.5"/><line x1="6" y1="4" x2="8" y2="4"/><line x1="6" y1="6" x2="8" y2="6"/><line x1="6" y1="8" x2="8" y2="8"/>`), warnDef:75, critDef:85 },
 ];
 const PRESETS = {
   standard:   [{name:'Standort',icon:'🏢'},{name:'Netzwerk',icon:'🌐'},{name:'Gruppe',icon:'📁'}],
@@ -1145,6 +1146,11 @@ function getSensors(d) {
   if (d.disk > 0) sens.push({ ...SENSOR_DEFS[2], value: d.disk, status: sensorStatus(d.disk, SENSOR_DEFS[2]) });
   const pingVal = (d.ping !== null && d.ping !== undefined) ? d.ping : null;
   if (pingVal !== null) sens.push({ ...SENSOR_DEFS[3], value: pingVal, status: pingStatus(pingVal) });
+  const temp = d.extra && d.extra.temperature != null ? d.extra.temperature : null;
+  if (temp !== null) {
+    const td = SENSOR_DEFS[4];
+    sens.push({ ...td, value: temp, status: temp >= td.critDef ? 'crit' : temp >= td.warnDef ? 'warn' : 'ok' });
+  }
   return sens;
 }
 
@@ -2932,7 +2938,7 @@ function renderSensorTable(devs,c) {
     // SENSOR-ZEILEN (wenn ausgeklappt)
     if(isExp){
       sens.forEach(s=>{
-        const sval=s.unit==='ms'?latLbl(s.value):s.value+'%';
+        const sval=s.unit==='ms'?latLbl(s.value):s.unit==='°C'?`${s.value}°C`:s.value+'%';
         const sclr=s.unit==='ms'?latClr(s.value):valClr(s.value,s);
         const histData=s.id==='ping'?latHist[id]:[];
         html+=`<tr class="sen-row" onclick="selSensor('${id}','${s.id}')">
