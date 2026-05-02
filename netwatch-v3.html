@@ -649,18 +649,23 @@ canvas.lat-chart{width:100%;height:44px;display:block;margin-top:5px}
         </div>
         <div class="fg">
           <label class="fl">Typ</label>
-          <select class="fi" id="a-type">
+          <select class="fi" id="a-type" onchange="onDevTypeChange()">
             <option value="client">💻 PC / Laptop</option>
             <option value="server">🖥 Server</option>
             <option value="nas">💾 Storage / NAS</option>
             <option value="switch">🔀 Switch / Router</option>
+            <option value="firewall">🛡 Firewall</option>
             <option value="ap">📡 Access Point</option>
             <option value="printer">🖨 Drucker</option>
             <option value="usv">🔋 USV</option>
             <option value="camera">📷 Kamera</option>
             <option value="plc">⚙ SPS / PLC</option>
             <option value="phone">📞 VoIP</option>
+            <option value="custom">✏ Benutzerdefiniert…</option>
           </select>
+          <div id="a-type-custom-wrap" style="display:none;margin-top:4px">
+            <input class="fi" id="a-type-custom" placeholder="z.B. Firewall, Gateway, Sensor …" style="font-size:10px">
+          </div>
         </div>
         <div class="fg">
           <label class="fl">Betriebssystem</label>
@@ -1087,7 +1092,8 @@ const TYPE_SVG = {
   usv:     _s(`<rect x="2" y="3" width="12" height="10" rx="1"/><line x1="5.5" y1="3" x2="5.5" y2="1.5"/><line x1="10.5" y1="3" x2="10.5" y2="1.5"/><polyline points="9.5,6 7,9 9.5,9 6.5,12"/>`),
   printer: _s(`<rect x="4" y="2" width="8" height="4" rx=".8"/><rect x="2.5" y="6" width="11" height="5" rx="1"/><rect x="4" y="10" width="8" height="4" rx=".8"/><line x1="5.5" y1="12" x2="10.5" y2="12"/><circle cx="12" cy="8.5" r=".8" fill="currentColor" stroke="none"/>`),
   camera:  _s(`<rect x="1.5" y="5" width="13" height="9" rx="1"/><path d="M5.5 5 7 2.5h2L10.5 5"/><circle cx="8" cy="9.5" r="2.5"/>`),
-  phone:   _s(`<rect x="4.5" y="1" width="7" height="14" rx="1.5"/><line x1="4.5" y1="3.5" x2="11.5" y2="3.5"/><line x1="4.5" y1="11.5" x2="11.5" y2="11.5"/><circle cx="8" cy="13" r=".8" fill="currentColor" stroke="none"/>`),
+  phone:    _s(`<rect x="4.5" y="1" width="7" height="14" rx="1.5"/><line x1="4.5" y1="3.5" x2="11.5" y2="3.5"/><line x1="4.5" y1="11.5" x2="11.5" y2="11.5"/><circle cx="8" cy="13" r=".8" fill="currentColor" stroke="none"/>`),
+  firewall: _s(`<path d="M8 1.5 L13.5 4 V9.5 Q13.5 13.5 8 14.5 Q2.5 13.5 2.5 9.5 V4 Z"/><line x1="8" y1="4.5" x2="8" y2="10.5"/><line x1="5" y1="7" x2="11" y2="7"/>`),
 };
 // Rückwärtskompatibilität
 const TYPE_ICONS = TYPE_SVG;
@@ -2163,6 +2169,13 @@ async function showAlertHistory(hostname, id) {
 // GERÄT HINZUFÜGEN / BEARBEITEN / LÖSCHEN
 // ═══════════════════════════════════════════
 let editMode = false, editHostname = '';
+const KNOWN_TYPES = ['client','server','nas','switch','ap','printer','usv','camera','plc','phone','firewall'];
+
+function onDevTypeChange() {
+  const isCustom = document.getElementById('a-type').value === 'custom';
+  document.getElementById('a-type-custom-wrap').style.display = isCustom ? '' : 'none';
+  if (isCustom) document.getElementById('a-type-custom').focus();
+}
 
 function openAddDev(pathContext) {
   editMode = false;
@@ -2206,7 +2219,14 @@ function openEditDev(hn) {
   document.getElementById('a-hostname').style.opacity = '1';
   document.getElementById('a-ip').value   = d.ip   || '';
   document.getElementById('a-os').value   = d.os   || '';
-  document.getElementById('a-type').value = d.type || 'client';
+  if (d.type && !KNOWN_TYPES.includes(d.type)) {
+    document.getElementById('a-type').value = 'custom';
+    document.getElementById('a-type-custom').value = d.type;
+    document.getElementById('a-type-custom-wrap').style.display = '';
+  } else {
+    document.getElementById('a-type').value = d.type || 'client';
+    document.getElementById('a-type-custom-wrap').style.display = 'none';
+  }
   document.getElementById('a-tags').value = (d.tags||[]).join(', ');
 
   // Baum-Ebenen vorausfüllen
@@ -2223,15 +2243,20 @@ function closeAddDev() {
   editMode = false;
   editHostname = '';
   ['hostname','ip','os','tags'].forEach(f=>{ const el=document.getElementById('a-'+f); if(el)el.value=''; });
+  document.getElementById('a-type').value = 'client';
+  document.getElementById('a-type-custom').value = '';
+  document.getElementById('a-type-custom-wrap').style.display = 'none';
 }
 
 async function saveDevice() {
   const hn = (document.getElementById('a-hostname').value||'').trim().toUpperCase();
   if (!hn) { toast('Hostname ist ein Pflichtfeld!', 'err'); return; }
+  let typeVal = document.getElementById('a-type').value;
+  if (typeVal === 'custom') typeVal = (document.getElementById('a-type-custom').value.trim() || 'client').toLowerCase();
   const cfg = {
     ip:   document.getElementById('a-ip').value.trim(),
     os:   document.getElementById('a-os').value.trim(),
-    type: document.getElementById('a-type').value,
+    type: typeVal,
     tags: document.getElementById('a-tags').value.split(',').map(t=>t.trim()).filter(Boolean)
   };
   LEVELS.forEach((_,i)=>{ cfg['path_l'+(i+1)]=document.getElementById('a-l'+(i+1))?.value.trim()||'Unbekannt'; });
