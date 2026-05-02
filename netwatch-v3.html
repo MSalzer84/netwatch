@@ -3276,7 +3276,7 @@ async function loadHypervisorConfig(hostname, id) {
         <div id="hv-vms-${id}" style="margin-top:6px"></div>
       </div>`;
     updateHvFields(id);
-    if (cfg.type) loadVmList(hostname, id);
+    loadVmList(hostname, id);
   } catch { el.innerHTML = `<span style="font-size:9px;color:var(--t3)">Fehler beim Laden.</span>`; }
 }
 
@@ -3312,7 +3312,7 @@ async function loadVmList(hostname, id) {
   try {
     const r    = await fetch(`${API_URL}/api/devices/${encodeURIComponent(hostname)}/vms`);
     const vms  = await r.json();
-    if (!vms.length) { el.innerHTML = `<div style="font-size:9px;color:var(--t3);font-family:var(--sans)">Keine VMs gefunden — Token und URL prüfen.</div>`; return; }
+    if (!vms.length) { el.innerHTML = ''; return; }
     const stC  = { running:'var(--green)', stopped:'var(--gray)', paused:'var(--yellow)' };
     el.innerHTML = `
       <div style="font-size:9px;color:var(--t3);font-family:var(--sans);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${vms.length} VM${vms.length!==1?'s/Container':''}</div>

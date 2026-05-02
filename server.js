@@ -599,6 +599,7 @@ app.post('/api/data', async (req, res) => {
           VALUES (?, ?, ?, ?, ?, ?)
         `, [device.id, now, vm.name || '', vm.state || 'Unknown', vm.cpu || 0, vm.mem_gb || 0]);
       }
+      broadcast({ type: 'vms_update', hostname: d.hostname, vms: d.vms });
     }
 
     await checkAlerts(device, d, now);
