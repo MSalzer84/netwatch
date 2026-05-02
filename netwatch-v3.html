@@ -1253,7 +1253,9 @@ function handleMsg(msg) {
   if (msg.type==='offline') { const d=DEVICES.find(x=>x.hostname===msg.hostname); if(d){d.status='off';renderSummary();renderMain();checkKioskAlert(d.hostname);} return; }
   if (msg.type==='device_updated') {
     const d=DEVICES.find(x=>x.hostname===msg.device.hostname);
-    if(d){ Object.assign(d,msg.device); buildTree(); renderMain(); if(selId===devId(d))refreshDet(d); }
+    if(d){ Object.assign(d,msg.device); } else { DEVICES.push(msg.device); }
+    buildTree(); renderMain();
+    if(selId===devId(msg.device)||selId===msg.device.hostname) refreshDet(msg.device);
     return;
   }
   if (msg.type==='device_deleted') {

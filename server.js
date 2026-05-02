@@ -819,6 +819,7 @@ app.put('/api/devices/:hostname', async (req, res) => {
       if (clash) return res.status(409).json({ error: `Hostname "${newHn}" bereits vergeben` });
       await db.run('UPDATE devices SET hostname = ? WHERE hostname = ?', [newHn, hn]);
       await db.run('UPDATE blocked_hosts SET hostname = ? WHERE hostname = ?', [newHn, hn]);
+      await db.run('INSERT OR IGNORE INTO blocked_hosts (hostname) VALUES (?)', [hn]);
     }
 
     const finalHn = (newHn && newHn !== hn) ? newHn : hn;
