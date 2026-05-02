@@ -112,6 +112,28 @@ def get_uptime():
     except Exception:
         return ""
 
+def get_temp():
+    # 1. hwmon (CPU-Temperatur)
+    try:
+        import glob
+        for path in sorted(glob.glob("/sys/class/hwmon/hwmon*/temp*_input")):
+            with open(path) as f:
+                val = int(f.read().strip())
+            if val > 0:
+                return round(val / 1000, 1)
+    except Exception:
+        pass
+    # 2. thermal_zone
+    try:
+        for path in sorted(glob.glob("/sys/class/thermal/thermal_zone*/temp")):
+            with open(path) as f:
+                val = int(f.read().strip())
+            if val > 0:
+                return round(val / 1000, 1)
+    except Exception:
+        pass
+    return None
+
 def get_load():
     try:
         with open("/proc/loadavg") as f:
@@ -125,6 +147,7 @@ def collect(args):
     cpu       = get_cpu()
     mem       = get_mem()
     disk_pct, disk_total = get_disk(args.disk_path)
+    temp      = get_temp()
     return {
         "hostname": args.hostname or get_hostname(),
         "ip":       get_ip(),
@@ -139,8 +162,9 @@ def collect(args):
         "disk":     disk_pct,
         "uptime":   get_uptime(),
         "ping":     None,
-        "tags":     ["Synology", f"NAS"],
+        "tags":     ["Synology", "NAS"],
         "extra": {
+            "temperature":   temp,
             "load_avg_pct":  get_load(),
             "mem_total_gb":  get_mem_total_gb(),
             "disk_total_gb": disk_total,
@@ -179,7 +203,8 @@ def main():
         payload = collect(args)
         resp    = send(payload, args.server)
         if resp:
-            print(f"[OK] CPU:{payload['cpu']}%  RAM:{payload['mem']}%  Disk:{payload['disk']}%  Up:{payload['uptime']}")
+            temp_str = f"  Temp:{payload['extra']['temperature']}°C" if payload['extra']['temperature'] else ""
+            print(f"[OK] CPU:{payload['cpu']}%  RAM:{payload['mem']}%  Disk:{payload['disk']}%  Up:{payload['uptime']}{temp_str}")
         if args.once:
             break
         time.sleep(args.interval)
