@@ -1433,9 +1433,10 @@ function renderDiscovery(devices) {
 
     const rightSide = d.known
       ? `<span style="font-size:9px;color:var(--t3);font-family:var(--sans);flex-shrink:0">${d.hostname}</span>`
-      : `<div style="display:flex;gap:4px;flex-shrink:0">
+      : `<div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+           <input type="checkbox" data-scan-ip="${d.ip}" onchange="toggleScanSel('${d.ip}',this.checked)" style="width:14px;height:14px;accent-color:var(--green);cursor:pointer;" title="Auswählen">
            <button class="btn" style="font-size:8px;padding:1px 6px" onclick="enrichDevice('${d.ip}')" title="Analysieren">🔬</button>
-           <button class="btn p" style="font-size:9px;padding:2px 8px" onclick="addFromDisc('${d.ip}')">+ Anlegen</button>
+           <button class="btn p" style="font-size:9px;padding:2px 8px" onclick="addFromDisc('${d.ip}')">+ Einzeln</button>
          </div>`;
 
     return `<div class="disc-card${d.known ? ' known' : ''}" id="disc-card-${ipSafe}">
@@ -1453,7 +1454,11 @@ function renderDiscovery(devices) {
   };
 
   if (newOnes.length) {
-    html += `<div style="font-size:9px;color:var(--t3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px;font-family:var(--sans)">Neue Geräte</div>`;
+    html += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:7px;flex-wrap:wrap;">
+      <span style="font-size:9px;color:var(--t3);letter-spacing:.08em;text-transform:uppercase;font-family:var(--sans);flex:1">Neue Geräte</span>
+      <button class="btn" style="font-size:9px;padding:2px 8px" onclick="selectAllNewScan()">☑ Alle wählen</button>
+      <button class="btn" style="font-size:9px;padding:2px 8px" onclick="selectNoneScan()">☐ Keine</button>
+    </div>`;
     html += newOnes.map(renderCard).join('');
   }
   if (known.length) {
@@ -1461,6 +1466,7 @@ function renderDiscovery(devices) {
     html += known.map(renderCard).join('');
   }
   el.innerHTML = html;
+  updateBulkBar();
 }
 
 async function enrichDevice(ip) {
