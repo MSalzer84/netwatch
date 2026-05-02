@@ -2154,7 +2154,7 @@ async function showAlertHistory(hostname, id) {
 // ═══════════════════════════════════════════
 // GERÄT HINZUFÜGEN / BEARBEITEN / LÖSCHEN
 // ═══════════════════════════════════════════
-let editMode = false; // true = bearbeiten, false = neu anlegen
+let editMode = false, editHostname = '';
 
 function openAddDev(pathContext) {
   editMode = false;
@@ -2185,7 +2185,8 @@ function openEditDev(hn) {
   document.getElementById('addModalTitle').textContent = '✎ Gerät bearbeiten';
   const sb2 = document.getElementById('addModalSaveBtn');
   sb2.textContent = '✓ Änderungen speichern'; sb2.disabled = false;
-  document.getElementById('addModalTip').textContent = 'Du bearbeitest ein bestehendes Gerät. Der Hostname kann nicht geändert werden — alle anderen Felder sind editierbar.';
+  document.getElementById('addModalTip').textContent = 'Du bearbeitest ein bestehendes Gerät. Alle Felder inkl. Hostname sind änderbar.';
+  editHostname = d.hostname;
 
   // Dynamische Level-Felder zuerst erstellen
   const wrap=document.getElementById('add-levels');
@@ -2193,8 +2194,8 @@ function openEditDev(hn) {
 
   // Felder vorausfüllen
   document.getElementById('a-hostname').value = d.hostname;
-  document.getElementById('a-hostname').readOnly = true;
-  document.getElementById('a-hostname').style.opacity = '.5';
+  document.getElementById('a-hostname').readOnly = false;
+  document.getElementById('a-hostname').style.opacity = '1';
   document.getElementById('a-ip').value   = d.ip   || '';
   document.getElementById('a-os').value   = d.os   || '';
   document.getElementById('a-type').value = d.type || 'client';
@@ -2212,8 +2213,7 @@ function openEditDev(hn) {
 function closeAddDev() {
   document.getElementById('addOv').classList.remove('on');
   editMode = false;
-  document.getElementById('a-hostname').readOnly = false;
-  document.getElementById('a-hostname').style.opacity = '1';
+  editHostname = '';
   ['hostname','ip','os','tags'].forEach(f=>{ const el=document.getElementById('a-'+f); if(el)el.value=''; });
 }
 
@@ -2234,13 +2234,16 @@ async function saveDevice() {
 
   if (editMode) {
     try {
-      const r = await fetch(`${API_URL}/api/devices/${encodeURIComponent(hn)}`, {
+      const body = { ...cfg };
+      if (hn !== editHostname) body.new_hostname = hn;
+      const r = await fetch(`${API_URL}/api/devices/${encodeURIComponent(editHostname)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cfg),
+        body: JSON.stringify(body),
       });
+      const data = await r.json().catch(()=>({}));
       if (!r.ok) {
-        toast('Fehler beim Speichern in der Datenbank!', 'err');
+        toast(data.error || 'Fehler beim Speichern!', 'err');
         saveBtn.disabled = false;
         saveBtn.textContent = '✓ Änderungen speichern';
         return;

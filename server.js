@@ -813,6 +813,15 @@ app.put('/api/devices/:hostname', async (req, res) => {
     const dev = await db.get(`SELECT * FROM devices WHERE hostname = ?`, [hn]);
     if (!dev) return res.status(404).json({ error: 'Gerät nicht gefunden' });
 
+    const newHn = (d.new_hostname || '').trim().toUpperCase();
+    if (newHn && newHn !== hn) {
+      const clash = await db.get('SELECT id FROM devices WHERE hostname = ?', [newHn]);
+      if (clash) return res.status(409).json({ error: `Hostname "${newHn}" bereits vergeben` });
+      await db.run('UPDATE devices SET hostname = ? WHERE hostname = ?', [newHn, hn]);
+      await db.run('UPDATE blocked_hosts SET hostname = ? WHERE hostname = ?', [newHn, hn]);
+    }
+
+    const finalHn = (newHn && newHn !== hn) ? newHn : hn;
     await db.run(`
       UPDATE devices SET
         ip      = ?,
@@ -831,12 +840,13 @@ app.put('/api/devices/:hostname', async (req, res) => {
       d.path_l2 ?? dev.path_l2,
       d.path_l3 ?? dev.path_l3,
       JSON.stringify(Array.isArray(d.tags) ? d.tags : JSON.parse(dev.tags || '[]')),
-      hn,
+      finalHn,
     ]);
 
-    const updated = await db.get(`SELECT * FROM devices WHERE hostname = ?`, [hn]);
+    const updated = await db.get(`SELECT * FROM devices WHERE hostname = ?`, [finalHn]);
+    if (newHn && newHn !== hn) broadcast({ type: 'device_deleted', hostname: hn });
     broadcast({ type: 'device_updated', device: { ...updated, tags: JSON.parse(updated.tags || '[]') } });
-    res.json({ ok: true });
+    res.json({ ok: true, hostname: finalHn });
   } catch (err) {
     console.error('[PUT /api/devices]', err.message);
     res.status(500).json({ error: err.message });
