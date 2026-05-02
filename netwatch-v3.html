@@ -2987,6 +2987,27 @@ function renderSensorTable(devs,c) {
           <td></td>
         </tr>`;
       });
+
+      // VM / CT ZEILEN
+      const vms = vmCache[d.hostname] || [];
+      vms.forEach(vm=>{
+        const running = vm.vm_state === 'running';
+        const stBadge = running ? 'ok' : 'off';
+        const typeL   = vm.vm_type === 'lxc' ? 'CT' : 'VM';
+        const parts   = [];
+        if(vm.vm_cpu  != null) parts.push(`CPU ${vm.vm_cpu}%`);
+        if(vm.vm_mem_gb != null) parts.push(`${vm.vm_mem_gb} GB`);
+        const valStr  = parts.join(' · ') || '—';
+        html+=`<tr class="sen-row">
+          <td class="sen-indent"><span class="st-dot st-${stBadge}"></span><span class="${stBadge} s-badge" style="font-size:7px">${(vm.vm_state||'—').toUpperCase()}</span></td>
+          <td style="color:var(--t2);font-size:9px"><span style="font-size:7px;background:var(--bg4);color:var(--t3);border-radius:2px;padding:0 3px;margin-right:4px;font-family:var(--mono)">${typeL}</span>${vm.vm_name}</td>
+          <td style="font-size:9px;color:var(--t3)">VM / CT</td>
+          ${LEVELS.map(()=>'<td></td>').join('')}
+          <td style="font-size:10px;color:var(--t2);font-weight:600">${valStr}</td>
+          <td></td>
+          <td></td>
+        </tr>`;
+      });
     }
   });
 
@@ -2998,6 +3019,13 @@ function toggleDevRow(id) {
   const opening = !expandedDevs.has(id);
   if(opening){expandedDevs.add(id);}else{expandedDevs.delete(id);}
   selDev(id);
+  if(opening){
+    const d = DEVICES.find(x=>devId(x)===id||x.hostname===id);
+    if(d && !vmCache[d.hostname]){
+      fetch(`${API_URL}/api/devices/${encodeURIComponent(d.hostname)}/vms`)
+        .then(r=>r.json()).then(vms=>{ vmCache[d.hostname]=vms; renderMain(); }).catch(()=>{});
+    }
+  }
   renderMain();
   if(opening){
     setTimeout(()=>{
