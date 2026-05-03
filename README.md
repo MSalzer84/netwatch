@@ -540,12 +540,10 @@ OPNsense verwendet standardmäßig **bsnmpd** — damit funktionieren die HOST-R
 | Firewall-States | `1.3.6.1.4.1.12325.1.200.1.3.1.0` | — | — | eingebaut |
 | Temperatur | `1.3.6.1.4.1.2021.13.16.2.1.3.1` | °C | **1000** | Plugin* |
 
-**\* Temperatur** benötigt das Plugin `os-sensor`:
-1. OPNsense → System → Firmware → Plugins → `os-sensor` installieren
-2. Services → SNMP → Dienst neu starten
-3. Sensor im Dashboard hinzufügen mit Divisor `1000` (der OID liefert Milligrad, z. B. `45000` für 45 °C)
+**\* Temperatur — 🚧 In Arbeit:**
+Die OPNsense-Temperaturintegration ist noch in Entwicklung. OPNsense zeigt die Sensoren intern (CPU-Kerne, Gehäuse), stellt sie aber weder über einen Standard-SNMP-OID noch über einen direkten REST-API-Endpoint bereit. Eine automatische Abfrage wird in einer kommenden Version ergänzt.
 
-> Tipp: Im Sensor-Dialog auf **Preset laden** → „OPNsense → Temperatur" klicken — OID und Divisor werden automatisch ausgefüllt.
+Sobald verfügbar: Sensor im Dashboard → „OPNsense → Temperatur" Preset laden.
 
 ### Fehlerbehebung
 
