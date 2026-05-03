@@ -862,11 +862,15 @@ canvas.lat-chart{width:100%;height:44px;display:block;margin-top:5px}
             <input class="fi" id="s-snmp-unit" value="%" placeholder="%">
           </div>
           <div class="fg">
-            <label class="fl">Warnung / Kritisch</label>
-            <div style="display:flex;gap:4px">
-              <input class="fi" id="s-snmp-warn" placeholder="80" style="width:50%">
-              <input class="fi" id="s-snmp-crit" placeholder="95" style="width:50%">
-            </div>
+            <label class="fl" title="Rohwert wird durch diesen Wert geteilt. Z.B. 1000 wenn der OID Milligrad zurückgibt.">Divisor <span style="font-weight:400;color:var(--t3)">(opt.)</span></label>
+            <input class="fi" id="s-snmp-divisor" placeholder="1" style="font-family:var(--mono)">
+          </div>
+        </div>
+        <div class="fg">
+          <label class="fl">Warnung / Kritisch</label>
+          <div style="display:flex;gap:4px">
+            <input class="fi" id="s-snmp-warn" placeholder="80" style="width:50%">
+            <input class="fi" id="s-snmp-crit" placeholder="95" style="width:50%">
           </div>
         </div>
         <div style="margin-top:6px">
@@ -1869,6 +1873,7 @@ const SNMP_PRESETS = [
   { cat:'APC USV',       name:'Bat-Temp',       oid:'1.3.6.1.4.1.318.1.1.1.2.2.2.0',   unit:'°C', warn:40, crit:50 },
   { cat:'OPNsense',      name:'CPU',            oid:'1.3.6.1.2.1.25.3.3.1.2.1',        unit:'%',  warn:80, crit:95 },
   { cat:'OPNsense',      name:'CPU (alt)',      oid:'1.3.6.1.4.1.2021.11.9.0',          unit:'%',  warn:80, crit:95 },
+  { cat:'OPNsense',      name:'Temperatur',     oid:'1.3.6.1.4.1.2021.13.16.2.1.3.1',  unit:'°C', warn:70, crit:85, divisor:1000 },
   { cat:'Generic/Linux', name:'CPU (UCD)',      oid:'1.3.6.1.4.1.2021.11.9.0',          unit:'%',  warn:80, crit:95 },
   { cat:'Generic/Linux', name:'CPU (HostRes)',  oid:'1.3.6.1.2.1.25.3.3.1.2.1',        unit:'%',  warn:80, crit:95 },
   { cat:'Cisco',         name:'CPU',            oid:'1.3.6.1.4.1.9.2.1.56.0',           unit:'%',  warn:80, crit:95 },
@@ -1888,6 +1893,7 @@ function openSensorModal(hostname, ip) {
   document.getElementById('s-snmp-unit').value      = '%';
   document.getElementById('s-snmp-warn').value      = '';
   document.getElementById('s-snmp-crit').value      = '';
+  document.getElementById('s-snmp-divisor').value   = '';
   document.getElementById('s-ssl-host').value       = ip || '';
   document.getElementById('s-ssl-port').value       = '443';
   document.getElementById('s-ssl-warn').value       = '30';
@@ -1967,11 +1973,12 @@ function applyPreset(name, target) {
 
 function applySnmpPreset(idx) {
   const p = SNMP_PRESETS[idx];
-  document.getElementById('s-name').value       = p.name;
-  document.getElementById('s-snmp-oid').value   = p.oid;
-  document.getElementById('s-snmp-unit').value  = p.unit || '';
-  document.getElementById('s-snmp-warn').value  = p.warn != null ? p.warn : '';
-  document.getElementById('s-snmp-crit').value  = p.crit != null ? p.crit : '';
+  document.getElementById('s-name').value           = p.name;
+  document.getElementById('s-snmp-oid').value       = p.oid;
+  document.getElementById('s-snmp-unit').value      = p.unit || '';
+  document.getElementById('s-snmp-warn').value      = p.warn != null ? p.warn : '';
+  document.getElementById('s-snmp-crit').value      = p.crit != null ? p.crit : '';
+  document.getElementById('s-snmp-divisor').value   = p.divisor != null ? p.divisor : '';
 }
 
 async function saveSensor() {
@@ -1989,10 +1996,14 @@ async function saveSensor() {
     const critRaw   = document.getElementById('s-snmp-crit').value.trim();
     if (!ip)  { toast('Geräte-IP eingeben', 'err'); return; }
     if (!oid) { toast('OID eingeben', 'err'); return; }
-    const warn   = warnRaw !== '' ? parseFloat(warnRaw) : null;
-    const crit   = critRaw !== '' ? parseFloat(critRaw) : null;
-    const preset = SNMP_PRESETS.find(p => p.oid === oid);
-    target = JSON.stringify({ ip, community, oid, unit, warn, crit, invert: preset?.invert || false });
+    const warn      = warnRaw !== '' ? parseFloat(warnRaw) : null;
+    const crit      = critRaw !== '' ? parseFloat(critRaw) : null;
+    const divisorRaw = document.getElementById('s-snmp-divisor').value.trim();
+    const divisor   = divisorRaw !== '' ? parseFloat(divisorRaw) : null;
+    const preset    = SNMP_PRESETS.find(p => p.oid === oid);
+    const obj       = { ip, community, oid, unit, warn, crit, invert: preset?.invert || false };
+    if (divisor && divisor !== 1) obj.divisor = divisor;
+    target = JSON.stringify(obj);
   } else if (type === 'ssl') {
     const host   = document.getElementById('s-ssl-host').value.trim();
     const port   = parseInt(document.getElementById('s-ssl-port').value.trim()) || 443;

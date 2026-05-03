@@ -517,15 +517,21 @@ NetWatch fragt jetzt automatisch alle 60 Sekunden CPU, RAM und Disk über SNMP a
 
 Über **Sensor hinzufügen → SNMP-Wert** können weitere Metriken ergänzt werden:
 
-| Sensor | OID | Einheit |
-|--------|-----|---------|
-| CPU (Auslastung) | `1.3.6.1.2.1.25.3.3.1.2.1` | % |
-| RAM gesamt | `1.3.6.1.4.1.2021.4.5.0` | KB |
-| RAM verfügbar | `1.3.6.1.4.1.2021.4.6.0` | KB |
-| Uptime | `1.3.6.1.2.1.1.3.0` | — |
-| Firewall-States | `1.3.6.1.4.1.12325.1.200.1.3.1.0` | — |
+| Sensor | OID | Einheit | Divisor |
+|--------|-----|---------|---------|
+| CPU (Auslastung) | `1.3.6.1.2.1.25.3.3.1.2.1` | % | — |
+| CPU (alternativ) | `1.3.6.1.4.1.2021.11.9.0` | % | — |
+| RAM gesamt | `1.3.6.1.4.1.2021.4.5.0` | KB | — |
+| RAM verfügbar | `1.3.6.1.4.1.2021.4.6.0` | KB | — |
+| Temperatur | `1.3.6.1.4.1.2021.13.16.2.1.3.1` | °C | **1000** |
+| Uptime | `1.3.6.1.2.1.1.3.0` | — | — |
+| Firewall-States | `1.3.6.1.4.1.12325.1.200.1.3.1.0` | — | — |
 
-> Tipp: Im Dialog auf **Preset laden** klicken und „Generic/Linux" wählen — die CPU-OIDs werden automatisch eingefügt.
+> **Divisor bei Temperatur:** Der LM-Sensors OID liefert Milligrad (z. B. `45000` für 45 °C). Im Sensor-Dialog gibt es ein Feld **Divisor** — dort `1000` eintragen. Der Wert wird dann automatisch umgerechnet und korrekt als `45 °C` angezeigt.
+>
+> **Hinweis:** Die Temperatur-OID funktioniert nur wenn auf OPNsense das Paket `os-sensor` installiert ist (System → Package Manager → Plugins). Ohne Plugin antwortet der OID nicht.
+>
+> Tipp: Im Dialog auf **Preset laden** klicken und „OPNsense" wählen — CPU und Temperatur werden inklusive Divisor automatisch ausgefüllt.
 
 ### Fehlerbehebung
 
