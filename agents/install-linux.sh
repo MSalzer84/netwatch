@@ -99,8 +99,18 @@ fi
 
 # ── Abhängigkeiten installieren ──────────────────────────────────
 info "Installiere Python-Abhängigkeiten..."
-$PYTHON -m pip install --quiet --upgrade psutil requests
-ok "psutil & requests installiert"
+# Erst via apt versuchen (Debian/Ubuntu/Proxmox), dann pip
+PKGS_INSTALLED=false
+if command -v apt-get &>/dev/null; then
+  apt-get install -y python3-psutil python3-requests &>/dev/null && PKGS_INSTALLED=true && ok "psutil & requests via apt installiert"
+fi
+if [[ "$PKGS_INSTALLED" == false ]]; then
+  # pip mit --break-system-packages für Debian 12+ (PEP 668)
+  $PYTHON -m pip install --quiet --upgrade psutil requests 2>/dev/null \
+    || $PYTHON -m pip install --quiet --upgrade --break-system-packages psutil requests \
+    || error "Abhängigkeiten konnten nicht installiert werden"
+  ok "psutil & requests installiert"
+fi
 
 # ── Zielverzeichnis anlegen ──────────────────────────────────────
 INSTALL_DIR="/opt/netwatch"
