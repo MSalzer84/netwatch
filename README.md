@@ -511,7 +511,7 @@ Danach ist **Dienste → Net-SNMP** in der Sidebar sichtbar.
 2. **Aktiviere den SNMP Dienst** — Häkchen setzen
 3. **SNMP-Community** — eigenes Wort eintragen, z. B. `Netwatch` (nicht `public`)
 4. **SNMP-Standort** — optional, z. B. `Heimnetz`
-5. **IP-Adressen (eingehend)** — IP des NetWatch-Servers eintragen (z. B. `192.168.178.4`), damit nur dieser abfragen darf
+5. **IP-Adressen (eingehend)** — leer lassen (empfohlen). Eine bestimmte IP einzutragen kann durch Routing/NAT oder Hyper-V Netzwerkadapter dazu führen dass SNMP nicht antwortet, weil die Quell-IP abweicht.
 6. Speichern
 
 > **Achtung:** Der Community-String ist case-sensitiv. Was du hier einträgst, musst du exakt gleich im NetWatch-Dashboard eintragen.
