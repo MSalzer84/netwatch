@@ -568,6 +568,8 @@ configctl template reload OPNsense/Netsnmp && service snmpd restart
 
 Sensor hinzufügen → SNMP → Preset **„OPNsense → Temperatur"** auswählen → Speichern.
 
+> **Nur auf echter Hardware:** Der Temperatursensor funktioniert **nicht** wenn OPNsense in einer virtuellen Maschine (z. B. Proxmox, Hyper-V, VirtualBox) läuft — VMs stellen `dev.cpu.0.temperature` nicht bereit. Das Script gibt dann nichts aus und der Sensor bleibt offline.
+
 > **Hinweis:** OPNsense verwendet als Standard-Shell `csh/tcsh` — `#!/bin/sh` kann nicht direkt mit `echo` geschrieben werden (csh interpretiert `!` als History-Expansion). Deshalb wird `python3` mit `chr(33)` verwendet.
 
 > **SSH nach dem Einrichten wieder deaktivieren:** System → Verwaltung → Secure Shell → SSH-Dienst deaktivieren. SSH wird nur für die Einrichtung benötigt und sollte danach aus Sicherheitsgründen deaktiviert bleiben.
