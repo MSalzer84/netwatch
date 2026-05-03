@@ -1262,7 +1262,7 @@ function handleMsg(msg) {
       DEVICES.push(d);
     }
     Object.assign(d,{status:msg.status,cpu:msg.cpu,mem:msg.mem,disk:msg.disk,ping:msg.ping,uptime:msg.uptime,ip:msg.ip||d.ip,mac:msg.mac||d.mac||null});
-    if(msg.extra) d.extra=msg.extra;
+    if(msg.extra){if(!d.extra)d.extra={};for(const[k,v]of Object.entries(msg.extra)){if(v!==null&&v!==undefined)d.extra[k]=v;}}
     const id=devId(d);
     if (msg.ping!==null&&msg.ping!==undefined) { if(!latHist[id])latHist[id]=[]; latHist[id].push(msg.ping); if(latHist[id].length>20)latHist[id].shift(); }
     document.getElementById('lastUpd').textContent=new Date().toLocaleTimeString('de-AT',{hour12:false});
