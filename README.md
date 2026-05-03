@@ -493,16 +493,27 @@ Unregister-ScheduledTask -TaskName "NetWatch-HyperV-Agent" -Confirm:$false
 
 OPNsense (FreeBSD-basiert) hat keinen NetWatch-Agent — die Metriken kommen über **SNMP**. Sobald SNMP aktiviert und der Community-String im Dashboard eingetragen ist, werden CPU, RAM und Disk automatisch abgefragt.
 
-### Schritt 1 — SNMP in OPNsense aktivieren
+### Schritt 1 — SNMP Plugin installieren
 
-1. OPNsense-Weboberfläche öffnen (z. B. `https://10.0.0.1`)
-2. **Services → SNMP** — das ist der eingebaute SNMP-Dienst (bsnmpd)
-3. Häkchen bei **Enable** setzen
-4. **Community String** festlegen (z. B. `netwatch` — nicht `public` aus Sicherheitsgründen)
-5. **Bind Interfaces:** nur das LAN-Interface auswählen, nicht WAN
-6. Speichern und anwenden
+In neueren OPNsense-Versionen (23.x+) ist SNMP kein eingebauter Dienst — das Plugin muss einmalig installiert werden:
 
-### Schritt 2 — Gerät im Dashboard einrichten
+1. OPNsense → **System → Firmware → Plugins**
+   *(Deutsch: System → Firmware → Erweiterungen)*
+2. Suchfeld: `snmp` eingeben
+3. **`os-net-snmp`** installieren → `+` klicken → warten
+4. Seite neu laden
+
+Danach ist **Dienste → Net-SNMP** in der Sidebar sichtbar.
+
+### Schritt 2 — SNMP konfigurieren
+
+1. **Dienste → Net-SNMP**
+2. **Enable** aktivieren
+3. **Community String** festlegen (z. B. `netwatch` — nicht `public` aus Sicherheitsgründen)
+4. **Bind Interface:** nur LAN auswählen, nicht WAN
+5. Speichern und anwenden
+
+### Schritt 3 — Gerät im Dashboard einrichten
 
 1. Smart Discovery starten — OPNsense wird automatisch erkannt (Typ: `router`, OS: `OPNsense`)
 2. Gerät in die Geräteliste übernehmen
@@ -513,7 +524,7 @@ OPNsense (FreeBSD-basiert) hat keinen NetWatch-Agent — die Metriken kommen üb
 
 NetWatch fragt jetzt automatisch alle 60 Sekunden CPU, RAM und Disk über SNMP ab — keine weiteren Einstellungen nötig.
 
-### Schritt 3 — Zusätzliche Sensoren (optional)
+### Schritt 4 — Zusätzliche Sensoren (optional)
 
 Über **Sensor hinzufügen → SNMP-Wert** können weitere Metriken ergänzt werden:
 
@@ -535,15 +546,19 @@ OPNsense verwendet standardmäßig **bsnmpd** — damit funktionieren die HOST-R
 
 ### Fehlerbehebung
 
+**SNMP nicht sichtbar in der Sidebar:**
+- Plugin fehlt → System → Firmware → Plugins → `os-net-snmp` installieren
+- Nach Installation Seite neu laden — dann erscheint „Dienste → Net-SNMP"
+
 **SNMP antwortet nicht:**
-- OPNsense → Services → SNMP → prüfen ob Dienst aktiv (grüner Haken)
+- Dienste → Net-SNMP → prüfen ob Dienst aktiv (grüner Haken)
 - Firewall-Regel prüfen: UDP Port 161 vom NetWatch-Server zum OPNsense-LAN erlaubt?
 - Community String exakt gleich schreiben (Groß-/Kleinschreibung beachten)
-- Bind Interface: nur LAN wählen, nicht `all` / WAN
+- Bind Interface: nur LAN wählen, nicht WAN
 
 **CPU zeigt immer 0 %:**
-- OID `1.3.6.1.2.1.25.3.3.1.2.1` verwenden (hrProcessorLoad — funktioniert mit bsnmpd)
-- Die UCD-SNMP OID `1.3.6.1.4.1.2021.11.9.0` funktioniert nur mit dem net-snmp Plugin, nicht mit dem eingebauten bsnmpd
+- OID `1.3.6.1.2.1.25.3.3.1.2.1` (hrProcessorLoad) probieren
+- Preset im Sensor-Dialog: „OPNsense → CPU" auswählen
 
 ---
 
