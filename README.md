@@ -496,7 +496,7 @@ OPNsense (FreeBSD-basiert) hat keinen NetWatch-Agent — die Metriken kommen üb
 ### Schritt 1 — SNMP in OPNsense aktivieren
 
 1. OPNsense-Weboberfläche öffnen (z. B. `https://10.0.0.1`)
-2. **Services → Net-SNMP** (oder **Services → SNMP**, je nach Version)
+2. **Services → SNMP** — das ist der eingebaute SNMP-Dienst (bsnmpd)
 3. Häkchen bei **Enable** setzen
 4. **Community String** festlegen (z. B. `netwatch` — nicht `public` aus Sicherheitsgründen)
 5. **Bind Interfaces:** nur das LAN-Interface auswählen, nicht WAN
@@ -517,33 +517,33 @@ NetWatch fragt jetzt automatisch alle 60 Sekunden CPU, RAM und Disk über SNMP a
 
 Über **Sensor hinzufügen → SNMP-Wert** können weitere Metriken ergänzt werden:
 
-| Sensor | OID | Einheit | Divisor |
-|--------|-----|---------|---------|
-| CPU (Auslastung) | `1.3.6.1.2.1.25.3.3.1.2.1` | % | — |
-| CPU (alternativ) | `1.3.6.1.4.1.2021.11.9.0` | % | — |
-| RAM gesamt | `1.3.6.1.4.1.2021.4.5.0` | KB | — |
-| RAM verfügbar | `1.3.6.1.4.1.2021.4.6.0` | KB | — |
-| Temperatur | `1.3.6.1.4.1.2021.13.16.2.1.3.1` | °C | **1000** |
-| Uptime | `1.3.6.1.2.1.1.3.0` | — | — |
-| Firewall-States | `1.3.6.1.4.1.12325.1.200.1.3.1.0` | — | — |
+OPNsense verwendet standardmäßig **bsnmpd** — damit funktionieren die HOST-RESOURCES OIDs. Die UCD-SNMP OIDs (1.3.6.1.4.1.2021.x) funktionieren **nicht** ohne zusätzliches Plugin.
 
-> **Divisor bei Temperatur:** Der LM-Sensors OID liefert Milligrad (z. B. `45000` für 45 °C). Im Sensor-Dialog gibt es ein Feld **Divisor** — dort `1000` eintragen. Der Wert wird dann automatisch umgerechnet und korrekt als `45 °C` angezeigt.
->
-> **Hinweis:** Die Temperatur-OID funktioniert nur wenn auf OPNsense das Paket `os-sensor` installiert ist (System → Package Manager → Plugins). Ohne Plugin antwortet der OID nicht.
->
-> Tipp: Im Dialog auf **Preset laden** klicken und „OPNsense" wählen — CPU und Temperatur werden inklusive Divisor automatisch ausgefüllt.
+| Sensor | OID | Einheit | Divisor | Benötigt |
+|--------|-----|---------|---------|---------|
+| CPU (Auslastung) | `1.3.6.1.2.1.25.3.3.1.2.1` | % | — | eingebaut |
+| Uptime | `1.3.6.1.2.1.1.3.0` | — | — | eingebaut |
+| Firewall-States | `1.3.6.1.4.1.12325.1.200.1.3.1.0` | — | — | eingebaut |
+| Temperatur | `1.3.6.1.4.1.2021.13.16.2.1.3.1` | °C | **1000** | Plugin* |
+
+**\* Temperatur** benötigt das Plugin `os-sensor`:
+1. OPNsense → System → Firmware → Plugins → `os-sensor` installieren
+2. Services → SNMP → Dienst neu starten
+3. Sensor im Dashboard hinzufügen mit Divisor `1000` (der OID liefert Milligrad, z. B. `45000` für 45 °C)
+
+> Tipp: Im Sensor-Dialog auf **Preset laden** → „OPNsense → Temperatur" klicken — OID und Divisor werden automatisch ausgefüllt.
 
 ### Fehlerbehebung
 
 **SNMP antwortet nicht:**
-- OPNsense → Services → Net-SNMP → prüfen ob Dienst läuft
+- OPNsense → Services → SNMP → prüfen ob Dienst aktiv (grüner Haken)
 - Firewall-Regel prüfen: UDP Port 161 vom NetWatch-Server zum OPNsense-LAN erlaubt?
-- Community String exakt gleich (Groß-/Kleinschreibung beachten)
-- Interface: `bind` nur auf LAN, nicht auf `all`
+- Community String exakt gleich schreiben (Groß-/Kleinschreibung beachten)
+- Bind Interface: nur LAN wählen, nicht `all` / WAN
 
 **CPU zeigt immer 0 %:**
-- Alternativen OID probieren: `1.3.6.1.4.1.2021.11.9.0` (ssCpuUser)
-- Net-SNMP muss aktiv sein (nicht nur der SNMP-Proxy)
+- OID `1.3.6.1.2.1.25.3.3.1.2.1` verwenden (hrProcessorLoad — funktioniert mit bsnmpd)
+- Die UCD-SNMP OID `1.3.6.1.4.1.2021.11.9.0` funktioniert nur mit dem net-snmp Plugin, nicht mit dem eingebauten bsnmpd
 
 ---
 
