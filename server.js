@@ -525,6 +525,7 @@ async function initDatabase() {
   try { await db.run('ALTER TABLE vms ADD COLUMN vm_type TEXT DEFAULT \'vm\''); } catch {}
   try { await db.run('ALTER TABLE vms ADD COLUMN vm_id INTEGER'); } catch {}
   try { await db.run('ALTER TABLE devices ADD COLUMN blocked INTEGER DEFAULT 0'); } catch {}
+  try { await db.run('ALTER TABLE devices ADD COLUMN offline_since INTEGER'); } catch {}
   await db.run(`CREATE TABLE IF NOT EXISTS blocked_hosts (hostname TEXT PRIMARY KEY)`);
 
   console.log('[DB] Datenbank initialisiert');
@@ -582,6 +583,12 @@ app.post('/api/data', async (req, res) => {
     ]);
 
     const device = await db.get(`SELECT * FROM devices WHERE hostname = ?`, [d.hostname]);
+
+    if (device.offline_since) {
+      await db.run(`UPDATE devices SET offline_since = NULL WHERE id = ?`, [device.id]);
+      await db.run(`UPDATE alerts SET acked = 1 WHERE device_id = ? AND type = 'offline' AND acked = 0`, [device.id]);
+      device.offline_since = null;
+    }
 
     await db.run(`
       INSERT INTO metrics (device_id, ts, cpu, mem, disk, ping, uptime)
@@ -757,6 +764,17 @@ app.get('/api/alerts', async (req, res) => {
 app.post('/api/alerts/:id/ack', async (req, res) => {
   try {
     await db.run(`UPDATE alerts SET acked = 1 WHERE id = ?`, [parseInt(req.params.id)]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /api/alerts/ack-all ─────────────────────────────────
+app.post('/api/alerts/ack-all', async (req, res) => {
+  try {
+    await db.run(`UPDATE alerts SET acked = 1 WHERE acked = 0`);
+    broadcast({ type: 'alerts_cleared' });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1266,6 +1284,10 @@ wss.on('connection', async (ws, req) => {
         await db.run(`UPDATE alerts SET acked = 1 WHERE id = ?`, [msg.id]);
         broadcast({ type: 'alert_acked', id: msg.id });
       }
+      if (msg.type === 'ack_all') {
+        await db.run(`UPDATE alerts SET acked = 1 WHERE acked = 0`);
+        broadcast({ type: 'alerts_cleared' });
+      }
     } catch {}
   });
 
@@ -1314,10 +1336,14 @@ async function checkOffline() {
     `, [threshold]);
 
     for (const dev of offline) {
-      await db.run(`UPDATE devices SET status = 'off', continuous_since = NULL WHERE id = ?`, [dev.id]);
+      const offSince = dev.offline_since || Date.now();
+      await db.run(
+        `UPDATE devices SET status = 'off', continuous_since = NULL, offline_since = COALESCE(offline_since, ?) WHERE id = ?`,
+        [offSince, dev.id]
+      );
       const existing = await db.get(
-        `SELECT id FROM alerts WHERE device_id = ? AND type = 'offline' AND acked = 0`,
-        [dev.id]
+        `SELECT id FROM alerts WHERE device_id = ? AND type = 'offline' AND ts >= ?`,
+        [dev.id, offSince]
       );
       if (!existing) {
         await db.run(`
@@ -1397,7 +1423,11 @@ function snmpGetValue(ip, community, oid, timeoutMs = 4000) {
         return;
       }
       const v = varbinds[0].value;
-      if (Buffer.isBuffer(v)) { resolve(null); return; }
+      if (Buffer.isBuffer(v)) {
+        const num = parseFloat(v.toString('utf8').trim());
+        resolve(isNaN(num) ? null : num);
+        return;
+      }
       resolve(Number(v));
     });
   });
@@ -2259,7 +2289,8 @@ async function pingMonitor() {
         let contSince = dev.continuous_since;
         if (!contSince) {
           contSince = now;
-          await db.run('UPDATE devices SET continuous_since = ? WHERE id = ?', [now, dev.id]);
+          await db.run('UPDATE devices SET continuous_since = ?, offline_since = NULL WHERE id = ?', [now, dev.id]);
+          await db.run(`UPDATE alerts SET acked = 1 WHERE device_id = ? AND type = 'offline' AND acked = 0`, [dev.id]);
           setImmediate(() => autoProvisionSensors(dev).catch(() => {}));
         }
         const uptimeSec = Math.floor((now - contSince) / 1000);

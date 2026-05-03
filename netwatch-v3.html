@@ -626,6 +626,7 @@ canvas.lat-chart{width:100%;height:44px;display:block;margin-top:5px}
         <span class="al-t">Alarme</span>
         <span class="al-badge" id="al-badge">0</span>
         <span class="al-upd">Aktualisiert: <span id="lastUpd">--</span></span>
+        <button class="tb-btn" id="ackAllBtn" onclick="ackAll()" style="margin-left:6px;font-size:10px;padding:1px 6px;display:none">✓ Alle</button>
       </div>
       <div id="alertList"></div>
   </div>
@@ -1160,6 +1161,14 @@ function getSensors(d) {
   if (temp !== null) {
     const td = SENSOR_DEFS[4];
     sens.push({ ...td, value: temp, status: temp >= td.critDef ? 'crit' : temp >= td.warnDef ? 'warn' : 'ok' });
+  } else {
+    const cached = customSensorCache[d.hostname] || [];
+    const cs = cached.find(s => s.last_ms != null && /temp/i.test(s.name));
+    if (cs) {
+      const v = cs.last_ms;
+      const td = SENSOR_DEFS[4];
+      sens.push({ ...td, value: v, status: cs.last_status || (v >= td.critDef ? 'crit' : v >= td.warnDef ? 'warn' : 'ok') });
+    }
   }
   return sens;
 }
@@ -1265,6 +1274,7 @@ function handleMsg(msg) {
     return;
   }
   if (msg.type==='alert_acked') { ALERTS=ALERTS.filter(a=>a.id!==msg.id); renderAlerts(); return; }
+  if (msg.type==='alerts_cleared') { ALERTS=[]; renderAlerts(); return; }
   if (msg.type==='settings') return; // kein Re-Render nötig
   if (msg.type==='offline') { const d=DEVICES.find(x=>x.hostname===msg.hostname); if(d){d.status='off';renderSummary();renderMain();checkKioskAlert(d.hostname);} return; }
   if (msg.type==='device_updated') {
@@ -1873,7 +1883,7 @@ const SNMP_PRESETS = [
   { cat:'APC USV',       name:'Bat-Temp',       oid:'1.3.6.1.4.1.318.1.1.1.2.2.2.0',   unit:'°C', warn:40, crit:50 },
   { cat:'OPNsense',      name:'CPU',            oid:'1.3.6.1.2.1.25.3.3.1.2.1',        unit:'%',  warn:80, crit:95 },
   { cat:'OPNsense',      name:'CPU (alt)',      oid:'1.3.6.1.4.1.2021.11.9.0',          unit:'%',  warn:80, crit:95 },
-  { cat:'OPNsense',      name:'Temperatur',     oid:'1.3.6.1.4.1.2021.13.16.2.1.3.1',  unit:'°C', warn:70, crit:85, divisor:1000 },
+  { cat:'OPNsense',      name:'Temperatur',     oid:'1.3.6.1.4.1.8072.1.3.2.3.1.1.7.110.119.95.116.101.109.112', unit:'°C', warn:70, crit:85 },
   { cat:'Generic/Linux', name:'CPU (UCD)',      oid:'1.3.6.1.4.1.2021.11.9.0',          unit:'%',  warn:80, crit:95 },
   { cat:'Generic/Linux', name:'CPU (HostRes)',  oid:'1.3.6.1.2.1.25.3.3.1.2.1',        unit:'%',  warn:80, crit:95 },
   { cat:'Cisco',         name:'CPU',            oid:'1.3.6.1.4.1.9.2.1.56.0',           unit:'%',  warn:80, crit:95 },
@@ -3554,6 +3564,8 @@ function drawLatChart(cv,data) {
 function renderAlerts() {
   const active=ALERTS.filter(a=>!a.acked);
   document.getElementById('al-badge').textContent=active.filter(a=>a.severity!=='info').length;
+  const ackAllBtn=document.getElementById('ackAllBtn');
+  if(ackAllBtn) ackAllBtn.style.display=active.length?'':'none';
   if(!active.length){
     document.getElementById('alertList').innerHTML=`<div style="padding:6px 12px;font-size:10px;color:var(--t3);font-family:var(--sans)">✓ Keine aktiven Alarme</div>`;
     return;
@@ -3577,8 +3589,12 @@ function renderAlerts() {
 }
 function ackAlert(id,btn) {
   btn.parentElement.style.opacity='.35'; btn.textContent='✓';
-  if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({type:'ack',id}));
+  fetch(`${API_URL}/api/alerts/${id}/ack`,{method:'POST'});
   ALERTS=ALERTS.filter(a=>a.id!==id); setTimeout(renderAlerts,400);
+}
+function ackAll() {
+  fetch(`${API_URL}/api/alerts/ack-all`,{method:'POST'});
+  ALERTS=[]; renderAlerts();
 }
 
 // ═══════════════════════════════════════════

@@ -533,17 +533,44 @@ NetWatch fragt jetzt automatisch alle 60 Sekunden CPU, RAM und Disk über SNMP a
 
 OPNsense verwendet standardmäßig **bsnmpd** — damit funktionieren die HOST-RESOURCES OIDs. Die UCD-SNMP OIDs (1.3.6.1.4.1.2021.x) funktionieren **nicht** ohne zusätzliches Plugin.
 
-| Sensor | OID | Einheit | Divisor | Benötigt |
-|--------|-----|---------|---------|---------|
-| CPU (Auslastung) | `1.3.6.1.2.1.25.3.3.1.2.1` | % | — | eingebaut |
-| Uptime | `1.3.6.1.2.1.1.3.0` | — | — | eingebaut |
-| Firewall-States | `1.3.6.1.4.1.12325.1.200.1.3.1.0` | — | — | eingebaut |
-| Temperatur | `1.3.6.1.4.1.2021.13.16.2.1.3.1` | °C | **1000** | Plugin* |
+| Sensor | OID | Einheit |
+|--------|-----|---------|
+| CPU (Auslastung) | `1.3.6.1.2.1.25.3.3.1.2.1` | % |
+| Uptime | `1.3.6.1.2.1.1.3.0` | — |
+| Firewall-States | `1.3.6.1.4.1.12325.1.200.1.3.1.0` | — |
+| Temperatur | siehe unten | °C |
 
-**\* Temperatur — 🚧 In Arbeit:**
-Die OPNsense-Temperaturintegration ist noch in Entwicklung. OPNsense zeigt die Sensoren intern (CPU-Kerne, Gehäuse), stellt sie aber weder über einen Standard-SNMP-OID noch über einen direkten REST-API-Endpoint bereit. Eine automatische Abfrage wird in einer kommenden Version ergänzt.
+#### Temperatur-Sensor einrichten (via SNMP-Extend)
 
-Sobald verfügbar: Sensor im Dashboard → „OPNsense → Temperatur" Preset laden.
+OPNsense stellt die CPU-Temperatur nicht über Standard-SNMP-OIDs bereit. Die Lösung ist ein kleines Shell-Script das per SNMP-Extend abgefragt wird:
+
+**Einmalig per SSH auf OPNsense ausführen:**
+
+```sh
+# 1. Script erstellen (liest CPU-Temperatur via sysctl)
+python3 -c "open('/usr/local/bin/nw_temp.sh','w').write(chr(35)+chr(33)+'/bin/sh\n/sbin/sysctl -n dev.cpu.0.temperature | /usr/bin/sed s/C//\n')"
+chmod +x /usr/local/bin/nw_temp.sh
+
+# 2. Script in das SNMP-Template eintragen (dauerhaft, überlebt Updates)
+echo "content = open('/usr/local/opnsense/service/templates/OPNsense/Netsnmp/snmpd.conf').read()" > /tmp/fix.py
+echo "tag = '{' + '% endif %}'" >> /tmp/fix.py
+echo "last = content.rfind(tag)" >> /tmp/fix.py
+echo "insert = 'extend    nw_temp   /usr/local/bin/nw_temp.sh\n\n'" >> /tmp/fix.py
+echo "content = content[:last] + insert + content[last:]" >> /tmp/fix.py
+echo "open('/usr/local/opnsense/service/templates/OPNsense/Netsnmp/snmpd.conf', 'w').write(content)" >> /tmp/fix.py
+python3 /tmp/fix.py
+
+# 3. Config neu generieren und snmpd neu starten
+configctl template reload OPNsense/Netsnmp && service snmpd restart
+```
+
+**Im NetWatch-Dashboard:**
+
+Sensor hinzufügen → SNMP → Preset **„OPNsense → Temperatur"** auswählen → Speichern.
+
+> **Hinweis:** OPNsense verwendet als Standard-Shell `csh/tcsh` — `#!/bin/sh` kann nicht direkt mit `echo` geschrieben werden (csh interpretiert `!` als History-Expansion). Deshalb wird `python3` mit `chr(33)` verwendet.
+
+> **SSH nach dem Einrichten wieder deaktivieren:** System → Verwaltung → Secure Shell → SSH-Dienst deaktivieren. SSH wird nur für die Einrichtung benötigt und sollte danach aus Sicherheitsgründen deaktiviert bleiben.
 
 ### Fehlerbehebung
 
