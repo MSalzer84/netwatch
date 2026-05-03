@@ -34,7 +34,7 @@ const CONFIG = {
   ALERT_DISK:     90,
   WARN_DISK:      80,
   ALERT_PING:     100,
-  OFFLINE_SEC:    90,
+  OFFLINE_SEC:    180,
   NTFY_TOPIC:     '',
   NTFY_URL:       'https://ntfy.sh',
 };
