@@ -40,6 +40,7 @@ param(
 
 $VERSION = "2.0"
 $ErrorActionPreference = "SilentlyContinue"
+$script:LastTemp = $null
 
 # ── Logging ──────────────────────────────────────────────────
 function Write-Log {
@@ -128,15 +129,16 @@ function Get-CpuTemp {
         $vals = Get-CimInstance -Namespace "root/wmi" -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction Stop |
                 ForEach-Object { [math]::Round(($_.CurrentTemperature / 10) - 273.15, 1) } |
                 Where-Object { $_ -gt 1 -and $_ -lt 120 }
-        if ($vals) { return ($vals | Measure-Object -Maximum).Maximum }
+        if ($vals) { $script:LastTemp = ($vals | Measure-Object -Maximum).Maximum; return $script:LastTemp }
     } catch {}
     # Methode 2: Windows Performance Counter (Thermal Zone)
     try {
         $samples = (Get-Counter '\Thermal Zone Information(*)\Temperature' -ErrorAction Stop).CounterSamples |
                    Where-Object { $_.CookedValue -gt 1 -and $_.CookedValue -lt 120 }
-        if ($samples) { return [math]::Round(($samples | Measure-Object -Maximum -Property CookedValue).Maximum, 1) }
+        if ($samples) { $script:LastTemp = [math]::Round(($samples | Measure-Object -Maximum -Property CookedValue).Maximum, 1); return $script:LastTemp }
     } catch {}
-    return $null
+    # Fallback: letzten bekannten Wert zurückgeben damit die Kachel nicht verschwindet
+    return $script:LastTemp
 }
 
 function Get-SmartHealth {
