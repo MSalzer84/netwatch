@@ -508,10 +508,13 @@ Danach ist **Dienste → Net-SNMP** in der Sidebar sichtbar.
 ### Schritt 2 — SNMP konfigurieren
 
 1. **Dienste → Net-SNMP**
-2. **Enable** aktivieren
-3. **Community String** festlegen (z. B. `netwatch` — nicht `public` aus Sicherheitsgründen)
-4. **Bind Interface:** nur LAN auswählen, nicht WAN
-5. Speichern und anwenden
+2. **Aktiviere den SNMP Dienst** — Häkchen setzen
+3. **SNMP-Community** — eigenes Wort eintragen, z. B. `Netwatch` (nicht `public`)
+4. **SNMP-Standort** — optional, z. B. `Heimnetz`
+5. **IP-Adressen (eingehend)** — IP des NetWatch-Servers eintragen (z. B. `192.168.178.4`), damit nur dieser abfragen darf
+6. Speichern
+
+> **Achtung:** Der Community-String ist case-sensitiv. Was du hier einträgst, musst du exakt gleich im NetWatch-Dashboard eintragen.
 
 ### Schritt 3 — Gerät im Dashboard einrichten
 
