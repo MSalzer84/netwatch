@@ -1476,23 +1476,34 @@ async function snmpGetDeviceMetrics(device) {
 
   let cpu = null, mem = null, disk = null, temp = null;
 
-  // CPU: Net-SNMP/UCD (Linux, Synology, QNAP) → laLoadFloat 1-min
+  // CPU: ssCpuUser + ssCpuSystem (UCD/net-snmp — OPNsense, Linux, Synology)
   try {
-    const v = await snmpGetValue(ip, community, '1.3.6.1.4.1.2021.10.1.3.1', t);
-    if (v !== null) cpu = Math.min(100, Math.max(0, Math.round(parseFloat(String(v)))));
+    const user = await snmpGetValue(ip, community, '1.3.6.1.4.1.2021.11.9.0', t);
+    const sys  = await snmpGetValue(ip, community, '1.3.6.1.4.1.2021.11.10.0', t);
+    if (user !== null) cpu = Math.min(100, Math.max(1, Math.round(Number(user) + (sys !== null ? Number(sys) : 0))));
   } catch {}
-  // CPU: Windows SNMP service
+  // CPU: hrProcessorLoad (Windows SNMP, HOST-RESOURCES-MIB)
   if (cpu === null) {
     try {
       const v = await snmpGetValue(ip, community, '1.3.6.1.2.1.25.3.3.1.2.1', t);
-      if (v !== null) cpu = Math.min(100, Math.max(0, Math.round(Number(v))));
+      if (v !== null) cpu = Math.min(100, Math.max(1, Math.round(Number(v))));
+    } catch {}
+  }
+  // CPU: laLoad1 fallback (gibt Load-Average — nur wenn nichts anderes antwortet)
+  if (cpu === null) {
+    try {
+      const v = await snmpGetValue(ip, community, '1.3.6.1.4.1.2021.10.1.3.1', t);
+      if (v !== null) {
+        const load = parseFloat(String(v));
+        if (load > 0) cpu = Math.min(100, Math.max(1, Math.round(load)));
+      }
     } catch {}
   }
   // CPU: Cisco
   if (cpu === null) {
     try {
       const v = await snmpGetValue(ip, community, '1.3.6.1.4.1.9.2.1.56.0', t);
-      if (v !== null) cpu = Math.min(100, Math.max(0, Math.round(Number(v))));
+      if (v !== null) cpu = Math.min(100, Math.max(1, Math.round(Number(v))));
     } catch {}
   }
 
