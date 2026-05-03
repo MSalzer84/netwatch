@@ -20,6 +20,8 @@ Selbst entwickeltes Netzwerk-Monitoring — skalierbar vom Heimnetz bis zur Firm
   - [Synology NAS Agent](#synology-nas-agent)
 - [Proxmox vollständig einrichten](#proxmox-vollständig-einrichten)
 - [Hyper-V vollständig einrichten](#hyper-v-vollständig-einrichten)
+- [OPNsense einrichten](#opnsense-einrichten)
+- [FritzBox einrichten](#fritzbox-einrichten)
 - [Hypervisor-Integration](#hypervisor-integration)
 - [Schwellwerte](#schwellwerte)
 - [Ports](#ports)
@@ -484,6 +486,89 @@ Start-ScheduledTask -TaskName "NetWatch-HyperV-Agent"
 ```powershell
 Unregister-ScheduledTask -TaskName "NetWatch-HyperV-Agent" -Confirm:$false
 ```
+
+---
+
+## OPNsense einrichten
+
+OPNsense (FreeBSD-basiert) hat keinen NetWatch-Agent — die Metriken kommen über **SNMP**. Sobald SNMP aktiviert und der Community-String im Dashboard eingetragen ist, werden CPU, RAM und Disk automatisch abgefragt.
+
+### Schritt 1 — SNMP in OPNsense aktivieren
+
+1. OPNsense-Weboberfläche öffnen (z. B. `https://10.0.0.1`)
+2. **Services → Net-SNMP** (oder **Services → SNMP**, je nach Version)
+3. Häkchen bei **Enable** setzen
+4. **Community String** festlegen (z. B. `netwatch` — nicht `public` aus Sicherheitsgründen)
+5. **Bind Interfaces:** nur das LAN-Interface auswählen, nicht WAN
+6. Speichern und anwenden
+
+### Schritt 2 — Gerät im Dashboard einrichten
+
+1. Smart Discovery starten — OPNsense wird automatisch erkannt (Typ: `router`, OS: `OPNsense`)
+2. Gerät in die Geräteliste übernehmen
+3. Gerät anklicken → **Bearbeiten**
+4. **Typ** auf `Firewall` setzen
+5. **SNMP Community** eintragen (denselben String wie in Schritt 1)
+6. Speichern
+
+NetWatch fragt jetzt automatisch alle 60 Sekunden CPU, RAM und Disk über SNMP ab — keine weiteren Einstellungen nötig.
+
+### Schritt 3 — Zusätzliche Sensoren (optional)
+
+Über **Sensor hinzufügen → SNMP-Wert** können weitere Metriken ergänzt werden:
+
+| Sensor | OID | Einheit |
+|--------|-----|---------|
+| CPU (Auslastung) | `1.3.6.1.2.1.25.3.3.1.2.1` | % |
+| RAM gesamt | `1.3.6.1.4.1.2021.4.5.0` | KB |
+| RAM verfügbar | `1.3.6.1.4.1.2021.4.6.0` | KB |
+| Uptime | `1.3.6.1.2.1.1.3.0` | — |
+| Firewall-States | `1.3.6.1.4.1.12325.1.200.1.3.1.0` | — |
+
+> Tipp: Im Dialog auf **Preset laden** klicken und „Generic/Linux" wählen — die CPU-OIDs werden automatisch eingefügt.
+
+### Fehlerbehebung
+
+**SNMP antwortet nicht:**
+- OPNsense → Services → Net-SNMP → prüfen ob Dienst läuft
+- Firewall-Regel prüfen: UDP Port 161 vom NetWatch-Server zum OPNsense-LAN erlaubt?
+- Community String exakt gleich (Groß-/Kleinschreibung beachten)
+- Interface: `bind` nur auf LAN, nicht auf `all`
+
+**CPU zeigt immer 0 %:**
+- Alternativen OID probieren: `1.3.6.1.4.1.2021.11.9.0` (ssCpuUser)
+- Net-SNMP muss aktiv sein (nicht nur der SNMP-Proxy)
+
+---
+
+## FritzBox einrichten
+
+Die AVM FritzBox unterstützt **kein SNMP** und hat keine offene JSON-API — daher sind CPU, RAM und Disk-Sensoren im NetWatch-Dashboard nicht verfügbar. Was funktioniert:
+
+| Funktion | Verfügbar |
+|----------|-----------|
+| Ping / Erreichbarkeit | ✅ |
+| Status (online/offline) | ✅ |
+| CPU-Auslastung | ❌ |
+| RAM-Auslastung | ❌ |
+| Disk-Auslastung | ❌ |
+
+### Gerät manuell hinzufügen
+
+1. Im Dashboard auf **+** (Gerät hinzufügen) klicken
+2. **Hostname:** `FRITZ-BOX` (oder beliebig)
+3. **IP:** `192.168.178.1` (Standard-IP der FritzBox)
+4. **Typ:** `Router` oder `Firewall`
+5. **Standort / Gruppe** nach Wunsch
+6. Speichern
+
+Das Gerät erscheint in der Sensor-Tabelle mit Ping-Status (grün/rot). Damit ist zumindest die Erreichbarkeit überwacht.
+
+### Smart Discovery
+
+Die Smart Discovery erkennt die FritzBox automatisch per Ping und Port-Scan (Port 80, 443). Sie erscheint als neues Gerät zum Übernehmen — Typ dann auf `Firewall` ändern.
+
+> **Hinweis:** Wer auf einem anderen Gerät im Netz ein kleines Skript hosten will, das die FritzBox via TR-064-API abfragt und als JSON zurückgibt, kann das über **HTTP-Pull** anbinden. Das ist aber ein eigenes Projekt und nichts für den normalen Betrieb.
 
 ---
 
