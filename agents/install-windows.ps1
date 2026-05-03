@@ -61,15 +61,15 @@ try {
 Write-Info "Lege Task Scheduler Aufgabe an..."
 
 $taskName = "NetWatchAgent"
-$args     = "-NonInteractive -ExecutionPolicy Bypass -File `"$InstDir\agent.ps1`""
-$args    += " -Server `"$Server`" -Interval $Interval"
-$args    += " -Site `"$Site`" -Network `"$Network`" -Group `"$Group`" -Type $Type"
-$args    += " -LogFile `"$InstDir\agent.log`""
+$taskArgs  = "-NonInteractive -ExecutionPolicy Bypass -File `"$InstDir\agent.ps1`""
+$taskArgs += " -Server `"$Server`" -Interval $Interval"
+$taskArgs += " -Site `"$Site`" -Network `"$Network`" -Group `"$Group`" -Type $Type"
+$taskArgs += " -LogFile `"$InstDir\agent.log`""
 
 # Alte Aufgabe entfernen falls vorhanden
 Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
 
-$action  = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $args
+$action  = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $taskArgs
 $trigger = New-ScheduledTaskTrigger -AtStartup
 $settings= New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Hours 0) `
                -RestartCount 10 -RestartInterval (New-TimeSpan -Minutes 1) `
