@@ -497,11 +497,11 @@ OPNsense (FreeBSD-basiert) hat keinen NetWatch-Agent — die Metriken kommen üb
 
 In neueren OPNsense-Versionen (23.x+) ist SNMP kein eingebauter Dienst — das Plugin muss einmalig installiert werden:
 
-1. OPNsense → **System → Firmware → Plugins**
-   *(Deutsch: System → Firmware → Erweiterungen)*
-2. Suchfeld: `snmp` eingeben
-3. **`os-net-snmp`** installieren → `+` klicken → warten
-4. Seite neu laden
+1. OPNsense → **System → Firmware → Erweiterungen**
+2. Häkchen bei **„Community-Plugins anzeigen"** setzen (sonst ist `os-net-snmp` nicht sichtbar)
+3. Suchfeld: `snmp` eingeben
+4. **`os-net-snmp`** → `+` klicken → installieren → warten
+5. Seite neu laden
 
 Danach ist **Dienste → Net-SNMP** in der Sidebar sichtbar.
 
