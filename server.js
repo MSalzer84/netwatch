@@ -1315,10 +1315,16 @@ async function checkOffline() {
 
     for (const dev of offline) {
       await db.run(`UPDATE devices SET status = 'off', continuous_since = NULL WHERE id = ?`, [dev.id]);
-      await db.run(`
-        INSERT INTO alerts (device_id, ts, severity, type, message)
-        VALUES (?, ?, 'crit', 'offline', ?)
-      `, [dev.id, Date.now(), `Gerät antwortet nicht mehr — kein Signal seit über ${CONFIG.OFFLINE_SEC}s`]);
+      const existing = await db.get(
+        `SELECT id FROM alerts WHERE device_id = ? AND type = 'offline' AND acked = 0`,
+        [dev.id]
+      );
+      if (!existing) {
+        await db.run(`
+          INSERT INTO alerts (device_id, ts, severity, type, message)
+          VALUES (?, ?, 'crit', 'offline', ?)
+        `, [dev.id, Date.now(), `Gerät antwortet nicht mehr — kein Signal seit über ${CONFIG.OFFLINE_SEC}s`]);
+      }
       broadcast({ type: 'offline', hostname: dev.hostname });
       console.log(`[OFFLINE] ${dev.hostname} als offline markiert`);
     }
