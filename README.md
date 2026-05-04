@@ -235,6 +235,8 @@ Ein einziger Befehl auf dem Proxmox-Host (als root) erstellt einen fertigen LXC-
 bash <(curl -sSL https://raw.githubusercontent.com/MSalzer84/netwatch/main/proxmox-install.sh)
 ```
 
+![Proxmox LXC Installer](screenshot_proxmox_container.png)
+
 Das Script erledigt alles automatisch:
 - Lädt das Debian 12 Template herunter (falls nicht vorhanden)
 - Erstellt einen LXC-Container (512 MB RAM, 4 GB Disk, 1 CPU)

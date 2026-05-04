@@ -111,6 +111,8 @@ info "Installiere Node.js und NetWatch im Container..."
 pct exec "$CT_ID" -- bash -c "
   set -e
   export DEBIAN_FRONTEND=noninteractive
+  export LC_ALL=C.UTF-8
+  export LANG=C.UTF-8
 
   # System aktualisieren
   apt-get update -qq
