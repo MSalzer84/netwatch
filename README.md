@@ -248,9 +248,13 @@ Das Script erledigt alles automatisch:
 - Installiert Node.js und NetWatch im Container
 - Richtet systemd-Dienst ein (Autostart, Neustart bei Absturz)
 
-Am Ende erscheint die fertige Dashboard-URL:
+Am Ende erscheint die fertige Dashboard-URL und die Zugangsdaten:
 ```
 Dashboard → http://<CT-IP>:3000/netwatch-v3.html
+
+Zugangsdaten Container:
+  Benutzer : root
+  Passwort : netwatch
 ```
 
 **Container verwalten (auf dem Proxmox-Host):**
