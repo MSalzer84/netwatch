@@ -42,11 +42,15 @@ else
   STORAGE="local"
 fi
 
+# Zufälliges Root-Passwort generieren
+CT_PASS=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 16)
+
 echo -e "  Container-ID : ${BOLD}${CT_ID}${NC}"
 echo -e "  Name         : ${BOLD}${CT_NAME}${NC}"
 echo -e "  RAM          : ${BOLD}${CT_RAM} MB${NC}"
 echo -e "  Disk         : ${BOLD}${CT_DISK} GB${NC} (${STORAGE})"
 echo -e "  Bridge       : ${BOLD}${CT_BRIDGE}${NC}"
+echo -e "  Root-Passwort: ${BOLD}${CT_PASS}${NC}"
 echo -e "  Dashboard    : ${BOLD}http://<CT-IP>:${NETWATCH_PORT}/netwatch-v3.html${NC}"
 echo ""
 
@@ -77,16 +81,17 @@ fi
 info "Erstelle LXC-Container ${CT_ID} (${CT_NAME})..."
 
 pct create "$CT_ID" "$TEMPLATE_PATH" \
-  --hostname "$CT_NAME" \
-  --memory   "$CT_RAM" \
-  --cores    "$CT_CPU" \
-  --rootfs   "${STORAGE}:${CT_DISK}" \
-  --net0     "name=eth0,bridge=${CT_BRIDGE},ip=dhcp" \
-  --ostype   debian \
+  --hostname   "$CT_NAME" \
+  --memory     "$CT_RAM" \
+  --cores      "$CT_CPU" \
+  --rootfs     "${STORAGE}:${CT_DISK}" \
+  --net0       "name=eth0,bridge=${CT_BRIDGE},ip=dhcp" \
+  --ostype     debian \
   --unprivileged 1 \
-  --features nesting=1 \
-  --start    0 \
-  --onboot   1
+  --features   nesting=1 \
+  --password   "$CT_PASS" \
+  --start      0 \
+  --onboot     1
 
 ok "Container ${CT_ID} erstellt"
 
@@ -165,10 +170,16 @@ echo -e "${BOLD}${GREEN}╚═════════════════�
 echo ""
 echo -e "  Dashboard  →  ${BOLD}http://${IP}:${NETWATCH_PORT}/netwatch-v3.html${NC}"
 echo ""
-echo "  Container verwalten:"
-echo "    pct enter ${CT_ID}                         # Shell im Container"
+echo -e "  Zugangsdaten Container (root):"
+echo -e "    Benutzer : ${BOLD}root${NC}"
+echo -e "    Passwort : ${BOLD}${CT_PASS}${NC}"
+echo ""
+echo "  Container verwalten (auf dem Proxmox-Host):"
+echo "    pct enter ${CT_ID}                         # Shell im Container (ohne Passwort)"
 echo "    pct stop  ${CT_ID} / pct start ${CT_ID}   # Stoppen / Starten"
-echo "    journalctl -u netwatch-server -f           # Logs (im Container)"
+echo ""
+echo "  Logs anzeigen (im Container):"
+echo "    journalctl -u netwatch-server -f"
 echo ""
 echo "  NetWatch aktualisieren (im Container):"
 echo "    cd /opt/netwatch && git pull && systemctl restart netwatch-server"
