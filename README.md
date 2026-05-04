@@ -4,6 +4,11 @@
 
 Selbst entwickeltes Netzwerk-Monitoring — skalierbar vom Heimnetz bis zur Firmeninfrastruktur. Rechner, Server, NAS, Drucker, USVs, Access Points und Hypervisoren werden in einem Live-Dashboard zusammengefasst. Ähnlich wie Zabbix, aber ohne Lizenzkosten und vollständig unter eigener Kontrolle.
 
+<p>
+  <img src="screenshot-light.png" width="49%" alt="Dashboard Light Mode">
+  <img src="screenshot-dark.png" width="49%" alt="Dashboard Dark Mode">
+</p>
+
 ---
 
 ## Inhaltsverzeichnis
@@ -532,6 +537,8 @@ Die Smart Discovery erkennt die FritzBox automatisch per Ping.
 ## Hypervisor-Integration
 
 Gerät im Dashboard anklicken → **Hypervisor / VMs** → Typ wählen → Zugangsdaten eintragen → Speichern.
+
+![Dashboard VM-Übersicht](screenshot_Dashboard_vm.png)
 
 | Hypervisor | Typ | Zugangsdaten | URL |
 |---|---|---|---|

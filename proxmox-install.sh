@@ -42,8 +42,7 @@ else
   STORAGE="local"
 fi
 
-# Zufälliges Root-Passwort generieren
-CT_PASS=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 16)
+CT_PASS="netwatch"
 
 echo -e "  Container-ID : ${BOLD}${CT_ID}${NC}"
 echo -e "  Name         : ${BOLD}${CT_NAME}${NC}"
