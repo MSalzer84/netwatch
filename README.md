@@ -209,20 +209,36 @@ docker compose down             # Stoppen
 
 > **Hinweis:** `network_mode: host` ist nötig damit NetWatch andere LAN-Geräte per Ping und SNMP erreichen kann. Synology Container Manager unterstützt dies.
 
-#### Proxmox — Docker in LXC oder VM
+#### Proxmox — Vollautomatischer LXC-Installer ⭐
 
-**Option A — Ubuntu LXC mit Docker:**
+Ein einziger Befehl auf dem Proxmox-Host (als root) erstellt einen fertigen LXC-Container mit NetWatch:
+
 ```bash
-# Im LXC-Container als root:
-apt update && apt install -y docker.io docker-compose-plugin
-git clone https://github.com/MSalzer84/netwatch.git /opt/netwatch
-cd /opt/netwatch && docker compose up -d
+bash <(curl -sSL https://raw.githubusercontent.com/MSalzer84/netwatch/main/proxmox-install.sh)
 ```
 
-**Option B — Direkt auf dem Proxmox-Host (nicht empfohlen):**
+Das Script erledigt alles automatisch:
+- Lädt das Debian 12 Template herunter (falls nicht vorhanden)
+- Erstellt einen LXC-Container (512 MB RAM, 4 GB Disk, 1 CPU)
+- Installiert Node.js und NetWatch
+- Richtet den systemd-Dienst ein (Autostart, Neustart bei Absturz)
+- Zeigt am Ende die Dashboard-URL mit der IP des Containers
+
+Am Ende erscheint:
+```
+Dashboard → http://<CT-IP>:3000/netwatch-v3.html
+```
+
+**Container verwalten (auf dem Proxmox-Host):**
 ```bash
-# Nur wenn Docker auf dem Proxmox-Host installiert ist
-cd /opt/netwatch && docker compose up -d
+pct enter <CT-ID>          # Shell im Container öffnen
+pct stop  <CT-ID>          # Container stoppen
+pct start <CT-ID>          # Container starten
+```
+
+**NetWatch aktualisieren (im Container):**
+```bash
+cd /opt/netwatch && git pull && systemctl restart netwatch-server
 ```
 
 > Für die VM/Container-Übersicht in NetWatch zusätzlich den Proxmox API-Token einrichten — siehe [Proxmox vollständig einrichten](#proxmox-vollständig-einrichten).
