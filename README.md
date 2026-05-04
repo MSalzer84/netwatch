@@ -207,6 +207,8 @@ git pull && docker compose up -d # Update
 
 ### Synology NAS
 
+> **Hinweis:** Diese Installation wurde noch nicht live getestet. Das Script ist fertig, aber Feedback aus der Praxis fehlt noch. Bei Problemen bitte ein [Issue öffnen](https://github.com/MSalzer84/netwatch/issues).
+
 **Voraussetzung:** Container Manager im Package Center installiert, SSH aktiviert.
 
 Per SSH auf der Synology (als admin):
@@ -233,6 +235,8 @@ cd /volume1/docker/netwatch && git -C app pull && docker restart netwatch
 ---
 
 ### Proxmox
+
+> **Getestet und funktioniert.** Die LXC-Installation wurde erfolgreich auf Proxmox VE getestet.
 
 Ein einziger Befehl auf dem Proxmox-Host (als root) erstellt einen fertigen LXC-Container mit NetWatch:
 
