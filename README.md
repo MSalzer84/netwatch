@@ -269,6 +269,17 @@ pct start <CT-ID>   # Container starten
 cd /opt/netwatch && git pull && systemctl restart netwatch-server
 ```
 
+**Fehlerbehebung — Service startet nicht:**
+
+Falls `systemctl status netwatch-server` den Status `exit-code` zeigt (z.B. nach einer Installation mit einer älteren Script-Version):
+```bash
+# Im Container ausführen (pct enter <CT-ID> oder per SSH)
+sed -i 's|^ExecStart=.*|ExecStart=/usr/bin/node server.js|' /etc/systemd/system/netwatch-server.service
+systemctl daemon-reload
+systemctl restart netwatch-server
+systemctl status netwatch-server
+```
+
 > Für die VM-Übersicht in NetWatch zusätzlich den Proxmox API-Token einrichten — siehe [Proxmox vollständig einrichten](#proxmox-vollständig-einrichten).
 
 ---
