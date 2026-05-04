@@ -1,0 +1,5 @@
+node_modules
+netwatch.db
+*.log
+.git
+.gitignore

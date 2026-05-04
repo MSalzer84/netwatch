@@ -26,7 +26,7 @@ try { mdnsLib = require('multicast-dns'); } catch {}
 const CONFIG = {
   API_PORT:       3000,
   WS_PORT:        3001,
-  DB_FILE:        'netwatch.db',
+  DB_FILE:        process.env.DB_PATH || 'netwatch.db',
   ALERT_CPU:      90,
   WARN_CPU:       75,
   ALERT_MEM:      90,

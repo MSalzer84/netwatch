@@ -1,0 +1,16 @@
+services:
+  netwatch:
+    build: .
+    container_name: netwatch
+    restart: unless-stopped
+    # network_mode: host gibt dem Container direkten LAN-Zugriff (Ping & SNMP).
+    # Empfohlen für Synology, Proxmox und andere Linux-Hosts.
+    # Ports sind dann automatisch auf dem Host verfügbar (3000, 3001).
+    network_mode: host
+    volumes:
+      - netwatch-data:/app/data
+    environment:
+      - DB_PATH=/app/data/netwatch.db
+
+volumes:
+  netwatch-data:
