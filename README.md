@@ -201,13 +201,31 @@ docker compose pull && docker compose up -d  # Update
 docker compose down             # Stoppen
 ```
 
-#### Synology NAS (Container Manager)
+#### Synology NAS — Vollautomatischer Installer ⭐
 
-1. SSH auf die Synology öffnen oder **Container Manager → Projekt** aufrufen
-2. Neues Projekt anlegen → Compose-Inhalt aus `docker-compose.yml` einfügen
-3. **Starten** klicken — fertig
+Voraussetzung: **Container Manager** im Package Center installiert, SSH aktiviert.
 
-> **Hinweis:** `network_mode: host` ist nötig damit NetWatch andere LAN-Geräte per Ping und SNMP erreichen kann. Synology Container Manager unterstützt dies.
+Per SSH auf der Synology (als admin):
+
+```bash
+sudo bash <(curl -sSL https://raw.githubusercontent.com/MSalzer84/netwatch/main/synology-install.sh)
+```
+
+Das Script erledigt alles automatisch:
+- Lädt NetWatch nach `/volume1/docker/netwatch/` herunter
+- Installiert npm-Abhängigkeiten im Container
+- Startet NetWatch als Docker-Container
+- Startet automatisch nach jedem NAS-Reboot
+
+Am Ende erscheint:
+```
+Dashboard → http://<NAS-IP>:3000/netwatch-v3.html
+```
+
+**NetWatch aktualisieren:**
+```bash
+cd /volume1/docker/netwatch && git -C app pull && docker restart netwatch
+```
 
 #### Proxmox — Vollautomatischer LXC-Installer ⭐
 
