@@ -1622,7 +1622,7 @@ async function pollAllSnmpMetrics() {
         await db.run('UPDATE devices SET extra_info = ? WHERE id = ?', [eiStr, dev.id]);
         dev.extra_info = eiStr;
         const st = calcStatus({ cpu: cpu ?? 0, mem: mem ?? 0, disk: disk ?? 0 });
-        await db.run('UPDATE devices SET status = ? WHERE id = ?', [st, dev.id]);
+        await db.run('UPDATE devices SET status = ?, last_seen = ? WHERE id = ?', [st, now, dev.id]);
         broadcastUpdate({ ...dev, status: st }, { cpu: cpu ?? 0, mem: mem ?? 0, disk: disk ?? 0, ping: latest?.ping, uptime: latest?.uptime, extra: ei }, st);
         await checkAlerts(dev, { cpu: cpu ?? 0, mem: mem ?? 0, disk: disk ?? 0, ping: latest?.ping ?? 0 }, now);
         const bwLog = bw_in_kbps !== null ? ` BW↓${bw_in_kbps}kbps ↑${bw_out_kbps}kbps` : '';
