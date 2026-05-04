@@ -261,6 +261,8 @@ Zugangsdaten Container:
   Passwort : netwatch
 ```
 
+![Proxmox Container läuft](proxmoxcontainerrunning.png)
+
 **Container verwalten (auf dem Proxmox-Host):**
 ```bash
 pct enter <CT-ID>   # Shell im Container öffnen
