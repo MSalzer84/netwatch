@@ -13,6 +13,10 @@ Selbst entwickeltes Netzwerk-Monitoring — skalierbar vom Heimnetz bis zur Firm
 - [Features](#features)
 - [Schnellstart](#schnellstart)
 - [Server dauerhaft einrichten ⭐](#server-dauerhaft-einrichten-)
+  - [Windows — Autostart-Script](#windows--autostart-script-empfohlen)
+  - [Linux — systemd](#linux--systemd)
+  - [Docker — Synology / Proxmox / jeder Linux-Host](#docker--synology--proxmox--jeder-linux-host-)
+  - [Linux / Mac — pm2](#linux--mac--pm2)
 - [Datenbank & Verlässlichkeit](#datenbank--verlässlichkeit)
 - [Agents installieren](#agents-installieren)
   - [Windows Agent](#windows-agent)
@@ -150,6 +154,78 @@ Get-ScheduledTask -TaskName "NetWatch-Server" | Select-Object State
 ```powershell
 Unregister-ScheduledTask -TaskName "NetWatch-Server" -Confirm:$false
 ```
+
+---
+
+### Linux — systemd
+
+Das mitgelieferte Script richtet den Server als systemd-Dienst ein (kein Login nötig, startet beim Boot):
+
+```bash
+cd /opt/netwatch   # oder das Verzeichnis wo NetWatch liegt
+sudo bash install-server-linux.sh
+```
+
+**Status prüfen:**
+```bash
+systemctl status netwatch-server
+journalctl -u netwatch-server -f
+```
+
+---
+
+### Docker — Synology / Proxmox / jeder Linux-Host ⭐
+
+Die einfachste Methode wenn Docker verfügbar ist. Läuft auf Synology NAS (Container Manager), Proxmox (VM/LXC mit Docker) und jedem anderen Linux-System.
+
+**Voraussetzung:** Docker + Docker Compose installiert.
+
+```bash
+git clone https://github.com/MSalzer84/netwatch.git
+cd netwatch
+docker compose up -d
+```
+
+Dashboard ist sofort erreichbar unter:
+```
+http://<HOST-IP>:3000/netwatch-v3.html
+```
+
+Die SQLite-Datenbank wird in einem **Docker-Volume** (`netwatch-data`) gespeichert und bleibt bei Updates erhalten.
+
+**Nützliche Befehle:**
+```bash
+docker compose logs -f          # Live-Logs
+docker compose restart          # Neustart
+docker compose pull && docker compose up -d  # Update
+docker compose down             # Stoppen
+```
+
+#### Synology NAS (Container Manager)
+
+1. SSH auf die Synology öffnen oder **Container Manager → Projekt** aufrufen
+2. Neues Projekt anlegen → Compose-Inhalt aus `docker-compose.yml` einfügen
+3. **Starten** klicken — fertig
+
+> **Hinweis:** `network_mode: host` ist nötig damit NetWatch andere LAN-Geräte per Ping und SNMP erreichen kann. Synology Container Manager unterstützt dies.
+
+#### Proxmox — Docker in LXC oder VM
+
+**Option A — Ubuntu LXC mit Docker:**
+```bash
+# Im LXC-Container als root:
+apt update && apt install -y docker.io docker-compose-plugin
+git clone https://github.com/MSalzer84/netwatch.git /opt/netwatch
+cd /opt/netwatch && docker compose up -d
+```
+
+**Option B — Direkt auf dem Proxmox-Host (nicht empfohlen):**
+```bash
+# Nur wenn Docker auf dem Proxmox-Host installiert ist
+cd /opt/netwatch && docker compose up -d
+```
+
+> Für die VM/Container-Übersicht in NetWatch zusätzlich den Proxmox API-Token einrichten — siehe [Proxmox vollständig einrichten](#proxmox-vollständig-einrichten).
 
 ---
 
