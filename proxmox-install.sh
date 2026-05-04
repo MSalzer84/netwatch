@@ -142,7 +142,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=/opt/netwatch
-ExecStart=$(which node) server.js
+ExecStart=/usr/bin/node server.js
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal
